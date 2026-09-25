@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>carterscoding</title>
+  <meta name="description" content="carterscoding: projects, experiments, and things Carter has built.">
+  <meta name="theme-color" content="#050806">
+
+  <!-- Social preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="carterscoding">
+  <meta property="og:description" content="Projects, experiments, and things Carter has built.">
+  <meta property="og:url" content="https://carterscoding.com/">
+
+  <!-- Favicon: a green ">_" drawn inline, so there's no extra file to load -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050806'/%3E%3Cpath d='M7 10l6 6-6 6' fill='none' stroke='%2300ff9c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='15' y='21' width='10' height='3' rx='1' fill='%2300ff9c'/%3E%3C/svg%3E">
+
+  <!-- Font (falls back to the system monospace font if this can't load) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- defer: run after the HTML is parsed, in this order -->
+  <script src="projects.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#projects">Skip to projects</a>
+
+  <!-- Decorative background layers (hidden from screen readers) -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg__gradient"></div>
+    <div class="bg__scanlines"></div>
+  </div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
+
+  <div class="page">
+    <header class="site-header">
+      <!-- Styled like the default macOS zsh prompt: user@host dir % command -->
+      <p class="header__prompt zsh" aria-hidden="true"><span class="zsh__prompt">visitor@carterscoding ~ %</span> <span class="zsh__cmd">./welcome.sh</span></p>
+
+      <!-- Clicking the title plays a random animation (see script.js) -->
+      <h1 class="title">
+        <button type="button" class="title__btn" id="title-btn" aria-label="carterscoding">
+          <span class="title__text" id="title-text">carterscoding</span><span class="cursor" aria-hidden="true"></span>
+        </button>
+      </h1>
+
+      <p class="tagline">projects, experiments &amp; things I've built</p>
+    </header>
+
+    <main id="projects" class="container" tabindex="-1">
+      <h2 class="section-title">
+        <span class="zsh" aria-hidden="true"><span class="zsh__prompt">visitor@carterscoding ~ %</span> <span class="zsh__cmd">ls </span></span><span class="zsh__cmd">projects</span>
+      </h2>
+
+      <!-- Cards are generated from projects.js -->
+      <ul class="grid" id="project-grid"></ul>
+
+      <noscript>
+        <p class="noscript-msg">Turn on JavaScript to see my projects, or browse them on
+          <a href="https://github.com/cksarge">GitHub</a>.</p>
+      </noscript>
+    </main>
+
+    <footer class="site-footer container">
+      <a class="card card--wide" href="https://github.com/cksarge" aria-labelledby="gh-title" aria-describedby="gh-desc">
+        <span class="card__glare" aria-hidden="true"></span>
+
+        <!-- GitHub mark -->
+        <svg class="gh-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+
+        <span class="card__body">
+          <span class="card__title" id="gh-title"><span class="sr-only">GitHub: </span>github.com/cksarge</span>
+          <span class="card__desc" id="gh-desc">All my repos, experiments &amp; works in progress.</span>
+        </span>
+
+        <span class="card__cta" aria-hidden="true"><span class="card__arrow">→</span></span>
+      </a>
+
+      <p class="footer-meta">© <span id="year">2026</span> Carter K · built with plain HTML, CSS &amp; JS</p>
+    </footer>
+  </div>
+</body>
+</html>
