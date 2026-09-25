@@ -1,0 +1,681 @@
+/* =============================================================
+   carterscoding.com — styles
+   -------------------------------------------------------------
+   Everything themeable lives in :root below. Change the values
+   there to retheme the whole site (the particle canvas reads
+   --c-accent-rgb and --font-mono too).
+   ============================================================= */
+
+:root {
+  /* ---------- Colors ---------- */
+  --c-bg: #050806;                 /* page background */
+  --c-bg-rgb: 5, 8, 6;             /* same as --c-bg, for rgba() overlays */
+  --c-bg-raised: #0a130e;          /* card background (shows if an image is missing) */
+  --c-accent: #00ff9c;             /* neon terminal green */
+  --c-accent-rgb: 0, 255, 156;     /* same as --c-accent, for rgba() glows + canvas */
+  --c-accent-2: #00d8c4;           /* teal secondary accent */
+  --c-text: #dcffe9;               /* main text */
+  --c-text-dim: #b4d6c4;           /* card descriptions */
+  --c-text-muted: #86ad99;         /* prompts, footer */
+  --c-border: rgba(var(--c-accent-rgb), 0.16);
+  --c-border-hot: rgba(var(--c-accent-rgb), 0.7);
+  --c-glitch-a: #ff2d6f;           /* RGB-split colors for the glitch animation */
+  --c-glitch-b: #00e5ff;
+
+  /* Moving background gradient blobs */
+  --c-bg-glow-1: rgba(0, 255, 156, 0.11);
+  --c-bg-glow-2: rgba(0, 200, 190, 0.09);
+  --c-bg-glow-3: rgba(0, 120, 75, 0.18);
+
+  /* ---------- Glows ---------- */
+  --glow-text: 0 0 6px rgba(var(--c-accent-rgb), 0.55), 0 0 24px rgba(var(--c-accent-rgb), 0.25);
+  --glow-card:
+    0 0 0 1px rgba(var(--c-accent-rgb), 0.45),
+    0 14px 40px -10px rgba(var(--c-accent-rgb), 0.35),
+    0 0 26px rgba(var(--c-accent-rgb), 0.16);
+  --glow-icon: drop-shadow(0 0 8px rgba(var(--c-accent-rgb), 0.55));
+  --shadow-card: 0 8px 28px -14px rgba(0, 0, 0, 0.9);
+
+  /* ---------- Spacing & sizing ---------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --gutter: clamp(16px, 4vw, 40px);  /* side padding (16px on phones) */
+  --max-width: 1200px;
+  --grid-gap: clamp(16px, 2.4vw, 28px);
+  --radius: 14px;
+
+  /* ---------- Type ---------- */
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 0.2s;
+  --dur-med: 0.35s;
+  --dur-zoom: 1.4s;                /* card image zoom on hover */
+  --bg-cycle: 38s;                 /* one pass of the background drift */
+  --card-lift: -6px;               /* how far cards rise on hover */
+}
+
+/* =============================================================
+   Base
+   ============================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(var(--c-accent-rgb), 0.3);
+  color: #fff;
+}
+
+/* Visually hidden, still read by screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  background: var(--c-accent);
+  color: var(--c-bg);
+  font-weight: 700;
+  border-radius: 6px;
+  transform: translateY(-200%);
+  transition: transform var(--dur-fast);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* =============================================================
+   Background: drifting gradient + scanlines + particle canvas
+   ============================================================= */
+
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Oversized layer so it can drift without showing its edges */
+.bg__gradient {
+  position: absolute;
+  inset: -50%;
+  background:
+    radial-gradient(circle at 30% 35%, var(--c-bg-glow-1), transparent 28%),
+    radial-gradient(circle at 70% 30%, var(--c-bg-glow-2), transparent 30%),
+    radial-gradient(circle at 50% 70%, var(--c-bg-glow-3), transparent 34%),
+    var(--c-bg);
+  animation: bg-drift var(--bg-cycle) ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes bg-drift {
+  0%   { transform: translate3d(-5%, -4%, 0) rotate(0deg) scale(1); }
+  50%  { transform: translate3d(4%, 3%, 0) rotate(10deg) scale(1.08); }
+  100% { transform: translate3d(-2%, 5%, 0) rotate(-6deg) scale(1.02); }
+}
+
+/* Faint CRT scanlines + vignette for the terminal feel */
+.bg__scanlines {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px);
+}
+
+#particles {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Overlay for effects that need to cover the viewport (shockwave rings).
+   overflow: hidden means they can never cause scrollbars. */
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* All real content sits above the background layers.
+   overflow-x: clip stops flying title letters from creating a horizontal scrollbar. */
+.page {
+  position: relative;
+  z-index: 2;
+  overflow-x: clip;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* zsh-style prompt: "visitor@carterscoding ~ %" dimmed, the typed command brighter */
+.zsh__prompt {
+  color: var(--c-text-muted);
+}
+
+.zsh__cmd {
+  color: var(--c-text);
+}
+
+/* =============================================================
+   Header + animated title
+   ============================================================= */
+
+.site-header {
+  padding: clamp(3.5rem, 12vh, 8rem) var(--gutter) clamp(2.5rem, 7vh, 4.5rem);
+  text-align: center;
+}
+
+.header__prompt {
+  margin: 0 0 var(--space-3);
+  font-size: clamp(0.75rem, 2.4vw, 0.9rem);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.1rem, 9vw, 5.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.title__btn {
+  position: relative;              /* offsetParent for the typewriter cursor math */
+  display: inline-block;
+  margin: 0;
+  min-height: 44px;                /* comfortable tap target on phones */
+  padding: 0.05em 0.2em;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--c-accent);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.title__btn:focus-visible {
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 6px;
+}
+
+.title__text {
+  display: inline-block;           /* needed so transform/clip-path apply (glitch) */
+  white-space: nowrap;
+  text-shadow: var(--glow-text);
+}
+
+/* Each letter is its own span (created by script.js) */
+.title__char {
+  display: inline-block;
+}
+
+.title__char.is-scrambling { color: var(--c-accent-2); opacity: 0.8; }
+.title__char.is-resolved   { animation: char-flash 0.45s ease-out; }
+.title__char.is-hidden     { visibility: hidden; }
+.title__char.is-glitched   { color: var(--c-glitch-a); }
+
+@keyframes char-flash {
+  from { color: #fff; text-shadow: 0 0 14px var(--c-accent), 0 0 30px var(--c-accent); }
+}
+
+/* Blinking block cursor */
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.82em;
+  margin-left: 0.1em;
+  vertical-align: -0.08em;
+  background: var(--c-accent);
+  box-shadow: 0 0 12px rgba(var(--c-accent-rgb), 0.7);
+  animation: blink 1.1s step-end infinite;
+}
+
+.cursor.is-solid {
+  animation: none;                 /* stays solid while "typing" */
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* Glitch: RGB-split text-shadow + sliced clip-path, jumping between frames */
+.title__text.fx-glitch {
+  animation: glitch 0.75s steps(1, end) both;
+}
+
+@keyframes glitch {
+  0%   { text-shadow: -3px 0 var(--c-glitch-a), 3px 0 var(--c-glitch-b); transform: translate(-2px, 1px) skewX(-6deg); clip-path: inset(10% 0 55% 0); }
+  9%   { text-shadow: 4px 0 var(--c-glitch-a), -4px 0 var(--c-glitch-b);  transform: translate(3px, -1px);              clip-path: inset(60% 0 4% 0); }
+  18%  { text-shadow: -2px 0 var(--c-glitch-a), 2px 0 var(--c-glitch-b);  transform: translate(-1px, 0) skewX(10deg);   clip-path: inset(0); }
+  30%  { text-shadow: -6px 0 var(--c-glitch-a), 6px 0 var(--c-glitch-b);  transform: translate(4px, 2px);               clip-path: inset(35% 0 30% 0); }
+  42%  { text-shadow: 2px 0 var(--c-glitch-a), -2px 0 var(--c-glitch-b);  transform: none;                              clip-path: inset(0); }
+  54%  { text-shadow: 5px 1px var(--c-glitch-a), -5px -1px var(--c-glitch-b); transform: translate(-3px, 0) skewX(-3deg); clip-path: inset(72% 0 0 0); }
+  66%  { text-shadow: -1px 0 var(--c-glitch-a), 1px 0 var(--c-glitch-b);  transform: translate(1px, -1px);              clip-path: inset(0); }
+  78%  { text-shadow: 3px 0 var(--c-glitch-a), -3px 0 var(--c-glitch-b);  transform: skewX(4deg);                       clip-path: inset(18% 0 66% 0); }
+  90%  { text-shadow: -1px 0 var(--c-glitch-a), 1px 0 var(--c-glitch-b);  transform: none;                              clip-path: inset(0); }
+  100% { text-shadow: var(--glow-text); transform: none; clip-path: none; }
+}
+
+/* Shockwave ring (positioned + animated by script.js) */
+.shockwave {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  border: 2px solid rgba(var(--c-accent-rgb), 0.9);
+  border-radius: 50%;
+  box-shadow:
+    0 0 24px rgba(var(--c-accent-rgb), 0.55),
+    inset 0 0 24px rgba(var(--c-accent-rgb), 0.35);
+}
+
+.tagline {
+  margin: var(--space-4) 0 0;
+  color: var(--c-text);
+  font-size: clamp(0.9rem, 2.6vw, 1.05rem);
+  text-wrap: balance;
+}
+
+/* =============================================================
+   Projects grid
+   ============================================================= */
+
+main:focus {
+  outline: none;                   /* focused only via the skip link */
+}
+
+.section-title {
+  margin: 0 0 var(--space-5);
+  font-size: clamp(0.85rem, 2.6vw, 1.2rem);   /* small enough to stay on one line at 375px */
+  font-weight: 400;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;                   /* mobile: 1 column */
+  gap: var(--grid-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }  /* tablet: 2 columns */
+}
+
+@media (min-width: 1024px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }  /* desktop: 3 columns */
+}
+
+.grid > li {
+  display: flex;
+}
+
+.grid__empty,
+.noscript-msg {
+  color: var(--c-text-muted);
+}
+
+/* =============================================================
+   Cards (project cards + the GitHub footer card)
+   ============================================================= */
+
+.card {
+  /* Updated live by script.js for the pointer tilt + glare */
+  --rx: 0deg;
+  --ry: 0deg;
+  --mx: 50%;
+  --my: 50%;
+  --lift: 0px;
+  --tilt-max: 8;                   /* max tilt in degrees (read by script.js) */
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 240px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-bg-raised);
+  box-shadow: var(--shadow-card);
+  color: var(--c-text);
+  text-decoration: none;
+  transform: perspective(1000px) translateY(var(--lift)) rotateX(var(--rx)) rotateY(var(--ry));
+  transition:
+    transform var(--dur-med) var(--ease-out),
+    box-shadow var(--dur-med) var(--ease-out),
+    border-color var(--dur-med) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+
+  /* Staggered fade-in on load (--i is set per card) */
+  animation: card-in 0.6s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 150ms);
+}
+
+/* Follow the pointer quickly while tilting */
+.card.is-tilting {
+  transition:
+    transform 0.12s linear,
+    box-shadow var(--dur-med) var(--ease-out),
+    border-color var(--dur-med) var(--ease-out);
+}
+
+@keyframes card-in {
+  from { opacity: 0; translate: 0 18px; }
+}
+
+/* Full-bleed background image */
+.card__media {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(45deg, rgba(var(--c-accent-rgb), 0.05) 0 2px, transparent 2px 14px),
+    linear-gradient(135deg, #0d2419, var(--c-bg));
+}
+
+.card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.01);
+  transition: transform var(--dur-zoom) var(--ease-out);
+}
+
+.card--no-image .card__img {
+  display: none;                   /* broken/missing image → show the pattern instead */
+}
+
+/* Dark gradient so text stays readable over any image */
+.card__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(var(--c-bg-rgb), 0.95) 0%,
+    rgba(var(--c-bg-rgb), 0.78) 28%,
+    rgba(var(--c-bg-rgb), 0.2) 58%,
+    rgba(var(--c-bg-rgb), 0) 100%
+  );
+}
+
+/* Soft green spotlight that follows the mouse */
+.card__glare {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--c-accent-rgb), 0.16), transparent 45%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-med);
+}
+
+.card__body {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-5);
+}
+
+.card__title {
+  margin: 0 0 var(--space-1);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.card__title::before {
+  content: "> ";
+  content: "> " / "";             /* decorative: hidden from screen readers where supported */
+  color: var(--c-accent);
+}
+
+.card__desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--c-text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.card__cta {
+  display: inline-flex;
+  gap: 0.4em;
+  margin-top: var(--space-3);
+  color: var(--c-accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
+.card__arrow {
+  display: inline-block;
+  transition: transform var(--dur-med) var(--ease-out);
+}
+
+/* ---- Hover (mouse/trackpad only, so taps don't leave cards stuck "hovered") ---- */
+@media (hover: hover) {
+  .card:hover {
+    --lift: var(--card-lift);
+    border-color: var(--c-border-hot);
+    box-shadow: var(--glow-card);
+  }
+
+  .card:hover .card__img   { transform: scale(1.08); }
+  .card:hover .card__glare { opacity: 1; }
+  .card:hover .card__arrow { transform: translateX(5px); }
+  .card:hover .gh-icon     { transform: rotate(-8deg) scale(1.08); }
+}
+
+/* ---- Keyboard focus: same look as hover plus a clear outline ---- */
+.card:focus-visible {
+  --lift: var(--card-lift);
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
+  border-color: var(--c-border-hot);
+  box-shadow: var(--glow-card);
+}
+
+.card:focus-visible .card__img   { transform: scale(1.08); }
+.card:focus-visible .card__arrow { transform: translateX(5px); }
+
+/* Tap feedback on touch screens */
+.card:active {
+  --lift: -2px;
+  border-color: var(--c-border-hot);
+}
+
+/* =============================================================
+   Footer + wide GitHub card
+   ============================================================= */
+
+.site-footer {
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-6);
+}
+
+.card--wide {
+  --tilt-max: 3;                   /* a wide card looks better with less tilt */
+
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: var(--space-5) var(--space-6);
+  background:
+    linear-gradient(115deg, rgba(var(--c-accent-rgb), 0.1), transparent 55%),
+    linear-gradient(rgba(var(--c-accent-rgb), 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(var(--c-accent-rgb), 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--c-bg-raised);
+}
+
+.card--wide .card__body {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+
+.card--wide .card__title {
+  overflow-wrap: anywhere;
+}
+
+.card--wide .card__cta {
+  flex: none;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.gh-icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  color: var(--c-accent);
+  filter: var(--glow-icon);
+  transition: transform var(--dur-med) var(--ease-out);
+}
+
+@media (max-width: 480px) {
+  .card--wide {
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .gh-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .card--wide .card__title {
+    font-size: 1rem;
+  }
+
+  .card--wide .card__cta {
+    display: none;                 /* the whole card is the link; give the text the room */
+  }
+}
+
+.footer-meta {
+  margin: var(--space-5) 0 0;
+  color: var(--c-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* =============================================================
+   Reduced motion: no drifting background, no particles,
+   no title animations, no tilt/zoom/lift. Glows still work.
+   ============================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .bg__gradient {
+    animation: none;
+    transform: none;
+  }
+
+  #particles,
+  .fx-layer {
+    display: none;
+  }
+
+  .cursor {
+    animation: none;
+  }
+
+  .title__btn {
+    cursor: default;
+  }
+
+  .card {
+    animation: none;
+    transform: none;
+    transition: box-shadow var(--dur-fast), border-color var(--dur-fast);
+  }
+
+  .card:hover .card__img,
+  .card:focus-visible .card__img,
+  .card:hover .card__arrow,
+  .card:focus-visible .card__arrow,
+  .card:hover .gh-icon {
+    transform: none;
+  }
+
+  .skip-link {
+    transition: none;
+  }
+}
