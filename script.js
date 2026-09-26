@@ -418,7 +418,13 @@
           [{ transform: "none" }, { transform: `translateY(${fall}px)` }],
           { duration, delay, easing, fill: "both" }
         );
-        return { span, column, letter, glyphs, trail, drop };
+        // Letter and trail stay solid for most of the fall, then dissolve,
+        // fully gone by the time they reach the bottom of the screen
+        const dissolve = [{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }];
+        const fades = [letter, column].map(
+          (el) => el.animate(dissolve, { duration, delay, fill: "both" }).finished
+        );
+        return { span, column, letter, glyphs, trail, drop, fades };
       });
 
       // Trail characters keep changing as they fall
@@ -429,7 +435,9 @@
       }, 70);
 
       try {
-        await Promise.all(drops.map(({ trail, drop }) => Promise.all([trail.finished, drop.finished])));
+        await Promise.all(
+          drops.map(({ trail, drop, fades }) => Promise.all([trail.finished, drop.finished, ...fades]))
+        );
       } finally {
         clearInterval(flicker);
         drops.forEach(({ column, letter }) => {
