@@ -40,9 +40,6 @@
 
   <div class="page">
     <header class="site-header">
-      <!-- Styled like the default macOS zsh prompt: user@host dir % command -->
-      <p class="header__prompt zsh" aria-hidden="true"><span class="zsh__prompt">visitor@carterscoding ~ %</span> <span class="zsh__cmd">./welcome.sh</span></p>
-
       <!-- Clicking the title plays a random animation (see script.js) -->
       <h1 class="title">
         <button type="button" class="title__btn" id="title-btn" aria-label="carterscoding">
@@ -54,9 +51,7 @@
     </header>
 
     <main id="projects" class="container" tabindex="-1">
-      <h2 class="section-title">
-        <span class="zsh" aria-hidden="true"><span class="zsh__prompt">visitor@carterscoding ~ %</span> <span class="zsh__cmd">ls </span></span><span class="zsh__cmd">projects</span>
-      </h2>
+      <h2 class="section-title">Projects</h2>
 
       <!-- Cards are generated from projects.js -->
       <ul class="grid" id="project-grid"></ul>
@@ -83,8 +78,6 @@
 
         <span class="card__cta" aria-hidden="true"><span class="card__arrow">→</span></span>
       </a>
-
-      <p class="footer-meta">© <span id="year">2026</span> Carter K · built with plain HTML, CSS &amp; JS</p>
     </footer>
   </div>
 </body>

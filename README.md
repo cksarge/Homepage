@@ -46,7 +46,13 @@ Tips:
 
 Everything themeable is in the `:root { … }` block at the top of `styles.css`: colors, glow strengths, spacing, corner radius, fonts, and animation speeds. For a different accent color, change **both** `--c-accent` and `--c-accent-rgb` (the particles use the RGB version).
 
-To add a new title animation, write a function inside `initTitle()` in `script.js` and add it to the `effects` object. It'll join the random rotation automatically.
+## Title animations
+
+Clicking the title plays one of 10 animations at random, never the same one twice in a row: `decode`, `scatter`, `glitch`, `shockwave`, `typewriter`, `crt`, `rain`, `flap`, `progress`, and `jello`.
+
+- **Try one on its own:** add `?effects=` plus its name to the URL, e.g. `http://localhost:8000/?effects=crt`. Separate several with commas: `?effects=crt,rain`.
+- **Add a new one:** write a function inside `initTitle()` in `script.js` and add it to the `effects` object. It joins the random rotation automatically.
+- **Remove one:** delete its name from the `effects` object.
 
 ## Run locally
 
