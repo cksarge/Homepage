@@ -135,16 +135,25 @@
       return span;
     });
 
+    // Pin each letter's width so glyph swaps can never nudge the layout
+    const lockWidths = () =>
+      chars.forEach((span) => (span.style.width = `${span.getBoundingClientRect().width}px`));
+
+    // Where the click happened. Keyboard "clicks" have no pointer position,
+    // so those start from the title's center.
+    const clickPoint = (event) => {
+      if (event.detail && (event.clientX || event.clientY)) return { x: event.clientX, y: event.clientY };
+      const rect = button.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    };
+
     /* ---- Animation pool: add a new function here to add an effect ---- */
 
     // Matrix-style decode: letters cycle through random glyphs, then lock in left to right
     function decode() {
       return new Promise((resolve) => {
-        // Pin each letter's width so glyph swaps can never nudge the layout
-        chars.forEach((span) => {
-          span.style.width = `${span.getBoundingClientRect().width}px`;
-          span.classList.add("is-scrambling");
-        });
+        lockWidths();
+        chars.forEach((span) => span.classList.add("is-scrambling"));
 
         const resolveAt = chars.map((_, i) => 250 + i * 60 + rand(0, 140));
         const end = Math.max(...resolveAt);
@@ -222,14 +231,7 @@
 
     // Green rings burst from the click point; letters bounce as the wave passes
     function shockwave(event) {
-      let x = event.clientX;
-      let y = event.clientY;
-      // Keyboard "clicks" have no pointer position, so start from the title's center
-      if (!event.detail || (x === 0 && y === 0)) {
-        const rect = button.getBoundingClientRect();
-        x = rect.left + rect.width / 2;
-        y = rect.top + rect.height / 2;
-      }
+      const { x, y } = clickPoint(event);
 
       const size = Math.max(window.innerWidth, window.innerHeight) * 1.2;
       const rings = [0, 150].map((delay) => {
@@ -296,7 +298,302 @@
       await wait(250);
     }
 
-    const effects = { decode, scatter, glitch, shockwave, typewriter };
+    // Old CRT monitor switching off and back on: the title squashes into a
+    // glowing line, shrinks to a dot, goes dark, then reverses.
+    function crt() {
+      const rect = button.getBoundingClientRect();
+      const beam = document.createElement("div");
+      beam.className = "crt-beam";
+      beam.style.left = `${rect.left + rect.width / 2}px`;
+      beam.style.top = `${rect.top + rect.height / 2}px`;
+      beam.style.width = `${rect.width}px`;
+      fxLayer.appendChild(beam);
+
+      // Easing goes on each step (not the whole animation) so the
+      // line/dot/off moments land exactly at their offsets
+      const frame = (offset, sx, sy, brightness, opacity) => ({
+        offset,
+        transform: `scale(${sx}, ${sy})`,
+        filter: `brightness(${brightness}) saturate(${brightness > 1 ? 0.4 : 1})`,
+        opacity,
+        easing: "ease-in-out",
+      });
+      const tube = button.animate(
+        [
+          frame(0, 1, 1, 1, 1),
+          frame(0.1, 1.03, 0.5, 1.8, 1),
+          frame(0.2, 1.1, 0.02, 3, 1),   // collapsed to a line
+          frame(0.3, 0.01, 0.02, 3, 1),  // then a dot
+          frame(0.36, 0, 0, 3, 0),       // off
+          frame(0.6, 0, 0, 3, 0),
+          frame(0.66, 0.01, 0.02, 3, 1), // dot again
+          frame(0.78, 1.1, 0.02, 3, 1),  // line again
+          frame(0.9, 0.98, 1.08, 1.5, 1),
+          frame(1, 1, 1, 1, 1),
+        ],
+        { duration: 1600 }
+      );
+      // A bright horizontal beam that sells the line → dot → off look
+      const glow = beam.animate(
+        [
+          { offset: 0, opacity: 0, transform: "scaleX(1)" },
+          { offset: 0.16, opacity: 0, transform: "scaleX(1)" },
+          { offset: 0.2, opacity: 1, transform: "scaleX(1.1)" },
+          { offset: 0.3, opacity: 1, transform: "scaleX(0.02)" },
+          { offset: 0.42, opacity: 0, transform: "scaleX(0.02)" },
+          { offset: 0.6, opacity: 0, transform: "scaleX(0.02)" },
+          { offset: 0.66, opacity: 1, transform: "scaleX(0.02)" },
+          { offset: 0.78, opacity: 1, transform: "scaleX(1.1)" },
+          { offset: 0.84, opacity: 0, transform: "scaleX(1)" },
+          { offset: 1, opacity: 0, transform: "scaleX(1)" },
+        ].map((step) => ({ ...step, easing: "ease-in-out" })),
+        { duration: 1600 }
+      );
+      return Promise.all([tube.finished, glow.finished.then(() => beam.remove())]);
+    }
+
+    // Matrix rain: the letters themselves fall away like Matrix code, each one
+    // the bright head of a trail of green characters, then drop back into place
+    async function rain() {
+      const titleSize = parseFloat(getComputedStyle(textEl).fontSize);
+      const glyphSize = Math.max(11, Math.round(titleSize * 0.3));
+      const letterStyle = getComputedStyle(chars[0]);
+      const accent = cssVar("--c-accent") || "#00ff9c";
+      const easing = "cubic-bezier(.45,0,.9,.6)"; // speeds up as it falls
+
+      const drops = chars.map((span, i) => {
+        const rect = span.getBoundingClientRect();
+        const fall = Math.max(window.innerHeight - rect.top, 0); // all the way off the bottom
+        const delay = i * 30 + rand(0, 180);
+        // Longer drops take longer, so the speed feels the same on any screen
+        const duration = Math.min(Math.max(fall * rand(2, 2.6), 900), 2200);
+
+        // Trail column: starts a little below the letter's top (roughly where
+        // lowercase letters begin), so the trail stays hidden until the letter
+        // falls, then hugs it all the way down
+        const attach = rect.height * 0.28;
+        const column = document.createElement("div");
+        column.className = "rain";
+        column.style.left = `${rect.left + rect.width / 2}px`;
+        column.style.top = `${rect.top + attach}px`;
+        column.style.height = `${fall + rect.height}px`;
+        column.style.fontSize = `${glyphSize}px`;
+
+        const strip = document.createElement("div");
+        strip.className = "rain__strip";
+        const count = Math.round(rand(6, 12));
+        const glyphs = [];
+        for (let k = 0; k < count; k++) {
+          const glyph = document.createElement("span");
+          glyph.textContent = randomGlyph();
+          glyph.style.opacity = ((k + 1) / count).toFixed(2); // brightest next to the letter
+          glyphs.push(glyph);
+          strip.appendChild(glyph);
+        }
+        column.appendChild(strip);
+        fxLayer.appendChild(column);
+
+        // Trail and letter move together: the strip's bottom edge tracks the letter
+        const stripHeight = count * glyphSize * 1.1;
+        const trail = strip.animate(
+          [{ transform: `translateY(${-stripHeight}px)` }, { transform: `translateY(${fall - stripHeight}px)` }],
+          { duration, delay, easing, fill: "both" }
+        );
+        // The falling letter is a copy on the fixed effects layer, so it can
+        // drop off the bottom of the screen without ever making the page
+        // taller. The real letter is hidden but keeps its space.
+        const letter = document.createElement("span");
+        letter.className = "rain-letter";
+        letter.textContent = span.textContent;
+        letter.style.left = `${rect.left}px`;
+        letter.style.top = `${rect.top}px`;
+        letter.style.fontFamily = letterStyle.fontFamily;
+        letter.style.fontSize = letterStyle.fontSize;
+        letter.style.fontWeight = letterStyle.fontWeight;
+        letter.style.lineHeight = `${rect.height}px`;
+        fxLayer.appendChild(letter);
+        span.classList.add("is-hidden");
+
+        const drop = letter.animate(
+          [{ transform: "none" }, { transform: `translateY(${fall}px)` }],
+          { duration, delay, easing, fill: "both" }
+        );
+        return { span, column, letter, glyphs, trail, drop };
+      });
+
+      // Trail characters keep changing as they fall
+      const flicker = setInterval(() => {
+        drops.forEach(({ glyphs }) => {
+          glyphs[Math.floor(Math.random() * glyphs.length)].textContent = randomGlyph();
+        });
+      }, 70);
+
+      try {
+        await Promise.all(drops.map(({ trail, drop }) => Promise.all([trail.finished, drop.finished])));
+      } finally {
+        clearInterval(flicker);
+        drops.forEach(({ column, letter }) => {
+          column.remove();
+          letter.remove();
+        });
+      }
+
+      // Letters drop back in from just above, left to right, with a white flash
+      const returns = drops.map(({ span }, i) => {
+        span.classList.remove("is-hidden"); // stays invisible until its turn (fill: backwards)
+        return span.animate(
+          [
+            { transform: "translateY(-0.6em)", opacity: 0, color: "#ffffff" },
+            { transform: "none", opacity: 1, color: "#ffffff", offset: 0.6 },
+            { transform: "none", opacity: 1, color: accent },
+          ],
+          { duration: 380, delay: i * 40, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }
+        ).finished;
+      });
+      await Promise.all(returns);
+      await wait(150);
+    }
+
+    // Split-flap board: each letter flips through a few characters like an
+    // airport departures board before landing on the right one
+    async function flap() {
+      const FLAP_GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789";
+      // One flip = top half folds away (0 → -90°), glyph swaps, next half folds in (90 → 0°)
+      const half = (span, from, to, easing) =>
+        span.animate(
+          [{ transform: `perspective(300px) rotateX(${from}deg)` }, { transform: `perspective(300px) rotateX(${to}deg)` }],
+          { duration: 60, easing, fill: "forwards" }
+        ).finished;
+      const flipTo = async (span, glyph) => {
+        await half(span, 0, -90, "ease-in");
+        span.textContent = glyph;
+        await half(span, 90, 0, "ease-out");
+      };
+
+      lockWidths();
+      chars.forEach((span) => span.classList.add("is-flap"));
+
+      await Promise.all(
+        chars.map(async (span, i) => {
+          await wait(i * 45);
+          const flips = 3 + Math.floor(Math.random() * 4);
+          for (let k = 0; k < flips; k++) {
+            await flipTo(span, FLAP_GLYPHS[Math.floor(Math.random() * FLAP_GLYPHS.length)]);
+          }
+          await flipTo(span, word[i]);
+          span.classList.add("is-resolved");
+        })
+      );
+      await wait(350);
+      chars.forEach((span) => span.classList.add("is-flap-out")); // tiles fade away
+      await wait(300);
+    }
+
+    // Fake loading bar: the word turns into "████░░░░  47%", fills up
+    // (with the classic stall near the end), then turns back into the word
+    async function progress() {
+      const cells = Math.max(chars.length - 5, 1); // room for " 100%" on the right
+
+      const slot = (i, pct) => {
+        if (i < cells) {
+          const filled = i < Math.round((pct / 100) * cells);
+          return [filled ? "█" : "░", filled ? "is-bar" : "is-bar-empty"];
+        }
+        if (i === cells) return [" ", ""];
+        const label = `${pct}%`.padStart(4, " ");
+        return [label[i - cells - 1] || " ", "is-meter"];
+      };
+      const render = (pct) =>
+        chars.forEach((span, i) => {
+          const [text, cls] = slot(i, pct);
+          span.textContent = text;
+          span.className = `title__char ${cls}`;
+        });
+
+      lockWidths();
+      cursor.classList.add("is-solid");
+
+      // The bar rolls out leftward from the cursor
+      for (let i = chars.length - 1; i >= 0; i--) {
+        const [text, cls] = slot(i, 0);
+        chars[i].textContent = text;
+        chars[i].className = `title__char ${cls}`;
+        await wait(22);
+      }
+
+      let pct = 0;
+      let stalled = false;
+      while (pct < 100) {
+        pct = Math.min(100, pct + Math.round(rand(4, 16)));
+        render(pct);
+        if (pct >= 80 && pct < 100 && !stalled) {
+          stalled = true;
+          await wait(rand(380, 560)); // "almost done…"
+        } else {
+          await wait(rand(50, 120));
+        }
+      }
+      await wait(300);
+
+      // Back to the word, left to right
+      for (let i = 0; i < chars.length; i++) {
+        chars[i].textContent = word[i];
+        chars[i].className = "title__char is-resolved";
+        await wait(28);
+      }
+      await wait(350);
+    }
+
+    // Jello: the word gets poked where you clicked, squishes, and wobbles
+    function jello(event) {
+      const { x } = clickPoint(event);
+      const rect = textEl.getBoundingClientRect();
+      const originX = Math.min(Math.max(x - rect.left, 0), rect.width);
+      textEl.style.transformOrigin = `${originX}px 100%`;
+
+      const squish = textEl.animate(
+        [
+          { transform: "none" },
+          { transform: "scale(1.2, 0.72)", offset: 0.14 },
+          { transform: "scale(0.85, 1.2) skewX(-7deg)", offset: 0.3 },
+          { transform: "scale(1.1, 0.9) skewX(5deg)", offset: 0.46 },
+          { transform: "scale(0.95, 1.06) skewX(-3deg)", offset: 0.62 },
+          { transform: "scale(1.03, 0.97) skewX(1.5deg)", offset: 0.78 },
+          { transform: "none" },
+        ].map((step) => ({ ...step, easing: "ease-in-out" })),
+        { duration: 1100 }
+      );
+
+      // Letters jiggle a beat later the farther they are from the poke
+      const jiggles = chars.map((span) => {
+        const r = span.getBoundingClientRect();
+        const distance = Math.abs(r.left + r.width / 2 - x);
+        return span.animate(
+          [
+            { transform: "none" },
+            { transform: "translateY(-0.12em) scaleY(1.12)", offset: 0.35 },
+            { transform: "translateY(0.04em) scaleY(0.94)", offset: 0.7 },
+            { transform: "none" },
+          ],
+          { duration: 500, delay: 120 + distance * 0.6, easing: "ease-in-out" }
+        ).finished;
+      });
+
+      return Promise.all([squish.finished, ...jiggles]);
+    }
+
+    const effects = {
+      decode, scatter, glitch, shockwave, typewriter,
+      crt, rain, flap, progress, jello,
+    };
+
+    // Optional: ?effects=crt,rain in the page URL limits the rotation to
+    // those effects (handy for trying one out). Unknown names are ignored.
+    const requested = (new URLSearchParams(window.location.search).get("effects") || "")
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name in effects);
+    const pool = requested.length ? requested : Object.keys(effects);
 
     // Put every letter back exactly as it started, so any effect can run next
     function reset() {
@@ -306,7 +603,9 @@
         span.className = "title__char";
         span.removeAttribute("style");
       });
+      [button, textEl].forEach((el) => el.getAnimations().forEach((animation) => animation.cancel()));
       textEl.className = "title__text";
+      textEl.removeAttribute("style");
       cursor.classList.remove("is-solid");
       cursor.style.transform = "";
     }
@@ -318,7 +617,9 @@
       if (running || reducedMotion.matches) return; // ignore clicks mid-animation
 
       // Pick at random, but never the same effect twice in a row
-      const options = Object.keys(effects).filter((name) => name !== lastEffect);
+      // (unless the pool only has one effect in it)
+      let options = pool.filter((name) => name !== lastEffect);
+      if (options.length === 0) options = pool;
       const name = options[Math.floor(Math.random() * options.length)];
       lastEffect = name;
       button.dataset.effect = name; // handy when debugging in DevTools
@@ -524,7 +825,4 @@
   initTitle();
   initTilt(); // after renderProjects so the new cards get tilt too
   initParticles();
-
-  const year = document.getElementById("year");
-  if (year) year.textContent = new Date().getFullYear();
 })();
