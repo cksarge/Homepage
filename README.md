@@ -48,7 +48,7 @@ Everything themeable is in the `:root { … }` block at the top of `styles.css`:
 
 ## Title animations
 
-Clicking the title plays one of 10 animations at random, never the same one twice in a row: `decode`, `scatter`, `glitch`, `shockwave`, `typewriter`, `crt`, `rain`, `flap`, `progress`, and `jello`.
+Clicking the title plays one of 15 animations at random, never the same one twice in a row: `decode`, `scatter`, `glitch`, `shockwave`, `typewriter`, `crt`, `rain`, `flap`, `progress`, `jello`, `dvd`, `capslock`, `battery`, `autocorrect`, and `buffering`.
 
 - **Try one on its own:** add `?effects=` plus its name to the URL, e.g. `http://localhost:8000/?effects=crt`. Separate several with commas: `?effects=crt,rain`.
 - **Add a new one:** write a function inside `initTitle()` in `script.js` and add it to the `effects` object. It joins the random rotation automatically.

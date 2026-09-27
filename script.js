@@ -590,9 +590,344 @@
       return Promise.all([squish.finished, ...jiggles]);
     }
 
+    /* ---- Everyday-computer jokes ---- */
+
+    // Make an element on the fixed effects layer (static markup only)
+    const fx = (className, html = "") => {
+      const el = document.createElement("div");
+      el.className = className;
+      el.innerHTML = html;
+      fxLayer.appendChild(el);
+      return el;
+    };
+    const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
+
+    // DVD screensaver: the title shrinks into a logo, bounces around the
+    // screen changing color, nails the corner, then flies home
+    async function dvd() {
+      const COLORS = ["#00ff9c", "#00d8c4", "#ff4fd8", "#ffd84f", "#4f9bff", "#ff7a4f"];
+      const textRect = textEl.getBoundingClientRect();
+      const titleStyle = getComputedStyle(textEl);
+      const logo = fx("dvd", "<span></span>");
+      logo.firstChild.textContent = word;
+      logo.style.fontFamily = titleStyle.fontFamily;
+      logo.style.fontSize = titleStyle.fontSize;
+      logo.style.fontWeight = titleStyle.fontWeight;
+      logo.style.letterSpacing = titleStyle.letterSpacing;
+
+      // Line the logo's text up exactly with the real title before swapping
+      const boxRect = logo.getBoundingClientRect();
+      const inner = logo.firstChild.getBoundingClientRect();
+      const startX = textRect.left - (inner.left - boxRect.left);
+      const startY = textRect.top + textRect.height / 2 - (inner.top - boxRect.top + inner.height / 2);
+      const w = boxRect.width;
+      const h = boxRect.height;
+      const scale = Math.min(Math.min(window.innerWidth * 0.42, 240) / w, 0.45);
+      const roomX = window.innerWidth - w * scale;   // how far the logo can travel
+      const roomY = window.innerHeight - h * scale;
+      const place = (x, y, s) => `translate(${x}px, ${y}px) scale(${s})`;
+
+      textEl.style.visibility = "hidden";
+      cursor.style.visibility = "hidden";
+      logo.style.transform = place(startX, startY, 1);
+
+      // 1. Shrink into a logo
+      const x0 = clamp(startX + (w * (1 - scale)) / 2, 0, roomX);
+      const y0 = clamp(startY + (h * (1 - scale)) / 2, 0, roomY);
+      await logo.animate(
+        [{ transform: place(startX, startY, 1) }, { transform: place(x0, y0, scale) }],
+        { duration: 450, easing: "cubic-bezier(.5,0,.3,1)", fill: "forwards" }
+      ).finished;
+      logo.classList.add("is-logo"); // border fades in
+
+      // 2. Bounce. The path is planned so it lands exactly in a corner at the
+      // end: moving diagonally, each axis must travel a whole number of
+      // screen-widths/heights. Pick the combo with the most DVD-like angle.
+      const duration = 2800;
+      const dirX = Math.random() < 0.5 ? 1 : -1;
+      const dirY = Math.random() < 0.5 ? 1 : -1;
+      const fromX = dirX > 0 ? x0 : roomX - x0; // distance measured in the travel direction
+      const fromY = dirY > 0 ? y0 : roomY - y0;
+      let best = null;
+      for (let k = 1; k <= 5; k++) {
+        for (let m = 1; m <= 5; m++) {
+          const vx = (k * roomX - fromX) / duration;
+          const vy = (m * roomY - fromY) / duration;
+          if (vx <= 0 || vy <= 0) continue;
+          const score = Math.abs(Math.log(vx / vy)) + (k + m < 4 ? 0.6 : 0); // prefer a few bounces
+          if (!best || score < best.score) best = { vx, vy, score };
+        }
+      }
+      // Unfold the straight-line distance back into the box (a triangle wave)
+      const fold = (u, len) => {
+        const m = ((u % (2 * len)) + 2 * len) % (2 * len);
+        return m <= len ? m : 2 * len - m;
+      };
+      const at = (t) => {
+        const ux = fromX + best.vx * t;
+        const uy = fromY + best.vy * t;
+        const x = dirX > 0 ? fold(ux, roomX) : roomX - fold(ux, roomX);
+        const y = dirY > 0 ? fold(uy, roomY) : roomY - fold(uy, roomY);
+        return { x, y, bounces: Math.floor(ux / roomX) + Math.floor(uy / roomY) };
+      };
+      logo.getAnimations().forEach((a) => a.cancel()); // hand position over to the loop
+      logo.style.transform = place(x0, y0, scale);
+      await new Promise((resolve) => {
+        let elapsed = 0;
+        let last = performance.now();
+        let lastBounces = 0;
+        let color = 0;
+        const step = (now) => {
+          elapsed = Math.min(elapsed + Math.min(now - last, 50), duration);
+          last = now;
+          const { x, y, bounces } = at(elapsed);
+          if (bounces !== lastBounces) {
+            lastBounces = bounces;
+            color = (color + 1) % COLORS.length;
+            logo.style.color = COLORS[color]; // new color on every wall hit
+          }
+          logo.style.transform = place(x, y, scale);
+          if (elapsed < duration) requestAnimationFrame(step);
+          else resolve();
+        };
+        requestAnimationFrame(step);
+      });
+
+      // 3. Corner! Celebrate with a flash and a burst of confetti
+      const end = at(duration);
+      const cornerX = end.x < roomX / 2 ? 0 : window.innerWidth;
+      const cornerY = end.y < roomY / 2 ? 0 : window.innerHeight;
+      const inward = Math.atan2(window.innerHeight / 2 - cornerY, window.innerWidth / 2 - cornerX);
+      const confetti = Array.from({ length: 16 }, (_, i) => {
+        const bit = fx("confetti");
+        bit.style.left = `${cornerX}px`;
+        bit.style.top = `${cornerY}px`;
+        bit.style.background = COLORS[i % COLORS.length];
+        const angle = inward + rand(-0.8, 0.8);
+        const dist = rand(60, 170);
+        return bit.animate(
+          [
+            { transform: "translate(0, 0) rotate(0)", opacity: 1 },
+            { transform: `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px) rotate(${rand(-360, 360)}deg)`, opacity: 0 },
+          ],
+          { duration: rand(600, 900), easing: "cubic-bezier(.2,.8,.3,1)" }
+        ).finished.then(() => bit.remove());
+      });
+      await logo.animate(
+        [{ filter: "brightness(1)" }, { filter: "brightness(2.2)" }, { filter: "brightness(1)" }, { filter: "brightness(2.2)" }, { filter: "brightness(1)" }],
+        { duration: 650 }
+      ).finished;
+
+      // 4. Fly home and turn back into the title
+      const accent = cssVar("--c-accent") || "#00ff9c";
+      await logo.animate(
+        [
+          { transform: place(end.x, end.y, scale), color: logo.style.color || accent },
+          { transform: place(startX, startY, 1), color: accent },
+        ],
+        { duration: 600, easing: "cubic-bezier(.5,0,.2,1)", fill: "forwards" }
+      ).finished;
+      textEl.style.visibility = "";
+      cursor.style.visibility = "";
+      logo.remove();
+      await Promise.all(confetti);
+    }
+
+    // Caps lock: a caps lock key lights up and the title YELLS for a moment
+    async function capslock() {
+      const rect = textEl.getBoundingClientRect();
+      const key = fx("keycap", '<span class="keycap__led"></span><span>⇪ caps lock</span>');
+      key.style.left = `${rect.left + rect.width / 2}px`;
+      key.style.top = `${rect.top}px`;
+      const press = () =>
+        key.animate([{ transform: "none" }, { transform: "translateY(3px) scale(0.97)" }, { transform: "none" }], { duration: 160 }).finished;
+
+      lockWidths();
+      await key.animate([{ opacity: 0, transform: "translateY(8px) scale(0.8)" }, { opacity: 1, transform: "none" }], {
+        duration: 220,
+        easing: "ease-out",
+      }).finished;
+      await wait(150);
+      await press();
+      key.classList.add("is-on");
+      chars.forEach((span, i) => (span.textContent = word[i].toUpperCase()));
+
+      // Shake like it's shouting
+      const shake = [0, -7, 7, -6, 6, -4, 4, -2, 0].map((x, i, all) => ({
+        transform: `translateX(${x}px) rotate(${x * 0.15}deg)`,
+        offset: i / (all.length - 1),
+      }));
+      await textEl.animate(shake, { duration: 500 }).finished;
+      await wait(120);
+      await textEl.animate(shake, { duration: 450 }).finished;
+      await wait(250);
+
+      await press();
+      key.classList.remove("is-on");
+      chars.forEach((span, i) => (span.textContent = word[i]));
+      await wait(250);
+      await key.animate([{ opacity: 1 }, { opacity: 0, transform: "translateY(-6px)" }], { duration: 200, fill: "forwards" }).finished;
+      key.remove();
+    }
+
+    // Low battery: the cursor becomes a draining battery and the title dims,
+    // then it gets plugged in and everything brightens back up
+    async function battery() {
+      const c = cursor.getBoundingClientRect();
+      const cell = fx(
+        "battery",
+        '<div class="battery__level"></div><svg class="battery__bolt" viewBox="0 0 24 24"><path d="M13.5 1.5 3.5 14h7l-1.5 8.5 11-13h-7z"/></svg>'
+      );
+      cell.style.left = `${c.left}px`;
+      cell.style.top = `${c.top}px`;
+      cell.style.width = `${c.width}px`;
+      cell.style.height = `${c.height}px`;
+      cell.style.fontSize = getComputedStyle(textEl).fontSize;
+      cursor.style.visibility = "hidden";
+      const level = cell.querySelector(".battery__level");
+      const bolt = cell.querySelector(".battery__bolt");
+      const DIM = "brightness(0.3) saturate(0.5)";
+
+      // Drain: green → yellow → red while the screen dims
+      await Promise.all([
+        level.animate(
+          [{ height: "100%", background: "#3dff8a" }, { height: "50%", background: "#ffd23d" }, { height: "8%", background: "#ff3d5a" }],
+          { duration: 1400, fill: "forwards" }
+        ).finished,
+        textEl.animate([{ filter: "brightness(1)" }, { filter: DIM }], { duration: 1400, fill: "forwards" }).finished,
+      ]);
+      // Low battery blink
+      await cell.animate([{ opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }], { duration: 650 }).finished;
+
+      // Plugged in!
+      bolt.animate(
+        [{ opacity: 0, transform: "translate(-50%, -50%) scale(0)" }, { opacity: 1, transform: "translate(-50%, -50%) scale(1.4)", offset: 0.6 }, { opacity: 1, transform: "translate(-50%, -50%) scale(1)" }],
+        { duration: 320, fill: "forwards" }
+      );
+      await wait(200);
+      await Promise.all([
+        level.animate([{ height: "8%", background: "#ff3d5a" }, { height: "50%", background: "#ffd23d" }, { height: "100%", background: "#3dff8a" }], {
+          duration: 700,
+          easing: "ease-out",
+          fill: "forwards",
+        }).finished,
+        textEl.animate([{ filter: DIM }, { filter: "brightness(1.6) saturate(1)", offset: 0.75 }, { filter: "brightness(1) saturate(1)" }], {
+          duration: 700,
+          fill: "forwards",
+        }).finished,
+      ]);
+      await wait(300);
+      await cell.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" }).finished;
+      cursor.style.visibility = "";
+      cell.remove();
+    }
+
+    // Autocorrect "fixes" the title to something silly, then gets undone
+    async function autocorrect() {
+      // Same length as the title, so swapping letters never shifts anything
+      const WRONG = "carrot scoops".padEnd(word.length).slice(0, word.length);
+      const rect = textEl.getBoundingClientRect();
+      const fontSize = parseFloat(getComputedStyle(textEl).fontSize);
+      const swapTo = async (target, flash) => {
+        for (let i = 0; i < chars.length; i++) {
+          chars[i].textContent = target[i] === " " ? " " : target[i];
+          if (flash) chars[i].classList.add("is-resolved");
+          await wait(22);
+        }
+      };
+
+      lockWidths();
+      // Red squiggly "spelling mistake" underline
+      const squiggle = fx("squiggle");
+      squiggle.style.left = `${rect.left}px`;
+      squiggle.style.top = `${rect.top + rect.height * 0.5 + fontSize * 0.42}px`;
+      squiggle.style.width = `${rect.width}px`;
+      await squiggle.animate([{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], {
+        duration: 350,
+        easing: "ease-out",
+        fill: "forwards",
+      }).finished;
+      await wait(250);
+
+      // Suggestion bubble
+      const bubble = fx("autocorrect", `Did you mean <b>${WRONG.trim()}</b>?`);
+      bubble.style.left = `${rect.left + rect.width / 2}px`;
+      bubble.style.top = `${rect.top + rect.height * 0.5 + fontSize * 0.62}px`;
+      await bubble.animate([{ opacity: 0, transform: "translateY(-6px) scale(0.9)" }, { opacity: 1, transform: "none" }], {
+        duration: 200,
+        easing: "ease-out",
+      }).finished;
+      await wait(650);
+
+      // "Corrected"
+      squiggle.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" });
+      await swapTo(WRONG, false);
+      bubble.innerHTML = `<span class="autocorrect__undo">↩ Undo</span>`;
+      await wait(900);
+
+      // Undo
+      bubble.classList.add("is-pressed");
+      await wait(150);
+      bubble.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(0.9)" }], { duration: 180, fill: "forwards" });
+      await swapTo(word, true);
+      await wait(400);
+      squiggle.remove();
+      bubble.remove();
+    }
+
+    // Buffering: the title goes blurry like a stalled video while a spinner
+    // counts 0% → 100% (getting stuck at 99%, of course), sharpening as it loads
+    async function buffering() {
+      const rect = textEl.getBoundingClientRect();
+      const spinner = fx("spinner", '<span class="spinner__pct">0%</span>');
+      const size = Math.round(clamp(rect.height * 0.8, 44, 72));
+      spinner.style.setProperty("--s", `${size}px`);
+      spinner.style.left = `${rect.left + rect.width / 2}px`;
+      spinner.style.top = `${rect.top + rect.height / 2}px`;
+      const label = spinner.querySelector(".spinner__pct");
+      const MAX_BLUR = 7;
+
+      let current = "blur(0px)";
+      const blurTo = (px, duration) => {
+        const next = `blur(${px.toFixed(2)}px)`;
+        const anim = textEl.animate([{ filter: current }, { filter: next }], { duration, fill: "forwards" });
+        current = next;
+        return anim.finished;
+      };
+
+      await blurTo(MAX_BLUR, 220);
+      let pct = 0;
+      let stuck = false;
+      while (pct < 100) {
+        pct = Math.min(100, pct + Math.round(rand(3, 11)));
+        if (pct >= 99 && !stuck) {
+          pct = 99; // the classic
+          stuck = true;
+        }
+        label.textContent = `${pct}%`;
+        blurTo(MAX_BLUR * (1 - pct / 100), 120);
+        await wait(pct === 99 ? rand(650, 850) : rand(70, 150));
+      }
+
+      // Loaded: spinner goes away and the title pops back to full sharpness
+      spinner.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(0.8)" }], { duration: 220, fill: "forwards" });
+      current = "none";
+      await textEl.animate(
+        [
+          { filter: "blur(0px) brightness(1)", transform: "scale(1)" },
+          { filter: "blur(0px) brightness(1.5)", transform: "scale(1.04)", offset: 0.4 },
+          { filter: "none", transform: "none" },
+        ],
+        { duration: 450, fill: "forwards" }
+      ).finished;
+      await wait(150);
+      spinner.remove();
+    }
+
     const effects = {
       decode, scatter, glitch, shockwave, typewriter,
       crt, rain, flap, progress, jello,
+      dvd, capslock, battery, autocorrect, buffering,
     };
 
     // Optional: ?effects=crt,rain in the page URL limits the rotation to
@@ -615,7 +950,7 @@
       textEl.className = "title__text";
       textEl.removeAttribute("style");
       cursor.classList.remove("is-solid");
-      cursor.style.transform = "";
+      cursor.removeAttribute("style");
     }
 
     let running = false;
@@ -656,15 +991,27 @@
       let frame = 0;
       let lastEvent = null;
 
+      // Pointer position as 0 → 1 across the card (clamped at the edges)
+      const position = (event) => {
+        const clamp = (n) => Math.min(Math.max(n, 0), 1);
+        return {
+          px: clamp((event.clientX - rect.left) / rect.width),
+          py: clamp((event.clientY - rect.top) / rect.height),
+        };
+      };
+
+      const moveGlare = ({ px, py }) => {
+        card.style.setProperty("--mx", `${(px * 100).toFixed(1)}%`);
+        card.style.setProperty("--my", `${(py * 100).toFixed(1)}%`);
+      };
+
       const update = () => {
         frame = 0;
         if (!rect || !lastEvent) return;
-        const px = (lastEvent.clientX - rect.left) / rect.width;  // 0 → 1 across the card
-        const py = (lastEvent.clientY - rect.top) / rect.height;
+        const { px, py } = position(lastEvent);
         card.style.setProperty("--ry", `${((px - 0.5) * 2 * maxTilt).toFixed(2)}deg`);
         card.style.setProperty("--rx", `${((0.5 - py) * 2 * maxTilt).toFixed(2)}deg`);
-        card.style.setProperty("--mx", `${(px * 100).toFixed(1)}%`);
-        card.style.setProperty("--my", `${(py * 100).toFixed(1)}%`);
+        moveGlare({ px, py });
       };
 
       card.addEventListener("pointerenter", (event) => {
@@ -673,6 +1020,9 @@
         rect = card.getBoundingClientRect();
         maxTilt = parseFloat(getComputedStyle(card).getPropertyValue("--tilt-max")) || 8;
         card.classList.add("is-tilting");
+        // Start the glare under the cursor, not wherever it was last time
+        lastEvent = event;
+        update();
       });
 
       card.addEventListener("pointermove", (event) => {
@@ -681,13 +1031,17 @@
         if (!frame) frame = requestAnimationFrame(update); // at most once per frame
       });
 
-      card.addEventListener("pointerleave", () => {
+      card.addEventListener("pointerleave", (event) => {
         cancelAnimationFrame(frame);
         frame = 0;
+        // Leave the glare where the cursor exited so it fades out in place;
+        // only the tilt springs back to flat
+        if (rect) moveGlare(position(event));
         rect = null;
         lastEvent = null;
         card.classList.remove("is-tilting");
-        ["--rx", "--ry", "--mx", "--my"].forEach((prop) => card.style.removeProperty(prop));
+        card.style.removeProperty("--rx");
+        card.style.removeProperty("--ry");
       });
     });
   }
