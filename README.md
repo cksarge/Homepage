@@ -114,5 +114,5 @@ To update the site later, commit and push. Pages redeploys within a minute or tw
 
 ## Notes
 
-- **Reduced motion:** if a visitor's OS has "reduce motion" turned on, the particles, background drift, title animations, card tilt, and zoom are all turned off.
+- **Reduced motion:** if a visitor's OS has "reduce motion" turned on, the particles, background drift, title animations, background click bursts, card tilt, and zoom are all turned off.
 - **Performance:** card images lazy-load, the particles pause when the tab is hidden, and fewer particles are drawn on phones. The only external request is the JetBrains Mono font, which falls back to the system monospace font if it can't load.
