@@ -5,6 +5,8 @@
    2. Title effects   a random click animation (never the same twice in a row)
    3. Card tilt       3D tilt + glare that follows the mouse (not on touch)
    4. Particles       glowing dots and drifting 0/1s on a <canvas>
+   5. Click bursts    clicking empty background sends a few 1s, 0s, and dots
+                      drifting out (drawn on the particle canvas, behind everything)
    Everything respects prefers-reduced-motion.
    ============================================================= */
 
@@ -1052,7 +1054,7 @@
 
   function initParticles() {
     const canvas = document.getElementById("particles");
-    if (!canvas || !canvas.getContext) return;
+    if (!canvas || !canvas.getContext) return null;
     const ctx = canvas.getContext("2d");
 
     const rgb = cssVar("--c-accent-rgb") || "0, 255, 156";
@@ -1061,6 +1063,7 @@
     let width = 0;
     let height = 0;
     let particles = [];
+    let bursts = [];   // short-lived bits from background clicks
     let rafId = 0;
     let running = false;
     let lastTime = 0;
@@ -1114,6 +1117,19 @@
       });
     }
 
+    // Draw one dot or digit (shared by the drifting particles and click bursts)
+    const paint = (p, alpha, time) => {
+      ctx.globalAlpha = alpha * (0.6 + 0.4 * Math.sin(time * p.twinkle + p.phase));
+      if (p.digit) {
+        ctx.font = `${p.size}px ${font}`;
+        ctx.fillText(p.digit, p.x, p.y);
+      } else {
+        ctx.drawImage(sprite, p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      }
+    };
+
+    const BURST_DRAG = 650; // ms; higher = bits coast farther before slowing down
+
     function draw(time) {
       const dt = Math.min(time - lastTime, 50); // clamp after tab switches/jank
       lastTime = time;
@@ -1134,13 +1150,25 @@
         if (p.x < -20) p.x = width + 20;
         else if (p.x > width + 20) p.x = -20;
 
-        ctx.globalAlpha = p.alpha * (0.6 + 0.4 * Math.sin(time * p.twinkle + p.phase));
-        if (p.digit) {
-          ctx.font = `${p.size}px ${font}`;
-          ctx.fillText(p.digit, p.x, p.y);
-        } else {
-          ctx.drawImage(sprite, p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        paint(p, p.alpha, time);
+      }
+
+      // Click-burst bits glide outward, slow down, and fade away
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const b = bursts[i];
+        b.age += dt;
+        if (b.age >= b.life) {
+          bursts.splice(i, 1);
+          continue;
         }
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        const drag = Math.exp(-dt / BURST_DRAG);
+        b.vx *= drag;
+        b.vy *= drag;
+        const fadeIn = Math.min(b.age / 150, 1);
+        const fadeOut = Math.min((b.life - b.age) / (b.life * 0.45), 1);
+        paint(b, b.alpha * fadeIn * fadeOut, time);
       }
       ctx.globalAlpha = 1;
       rafId = requestAnimationFrame(draw);
@@ -1179,6 +1207,47 @@
 
     resize();
     start();
+
+    return {
+      // Send a few bits drifting out from a point on the screen. They look
+      // exactly like the background particles (same glow, size, and dimness).
+      burst(x, y) {
+        if (!running || bursts.length > 60) return;
+        const count = 3 + Math.floor(Math.random() * 2); // 3–4
+        const turn = rand(0, Math.PI * 2);
+        for (let i = 0; i < count; i++) {
+          const angle = turn + (i / count) * Math.PI * 2 + rand(-0.5, 0.5);
+          const speed = rand(90, 170) / BURST_DRAG; // total distance ≈ 90–170px
+          bursts.push({
+            ...makeParticle(),
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            age: 0,
+            life: rand(1700, 2300),
+          });
+        }
+      },
+    };
+  }
+
+  /* =============================================================
+     5. Click bursts on the background
+     ============================================================= */
+
+  function initClickBursts(particles) {
+    if (!particles) return;
+    // Anything clickable does its own thing, so it doesn't get a burst
+    const INTERACTIVE = "a, button, input, textarea, select, label, summary, [role='button']";
+
+    document.addEventListener("click", (event) => {
+      if (reducedMotion.matches || event.button !== 0) return;
+      if (event.target.closest(INTERACTIVE)) return;
+      if (String(window.getSelection()).length) return; // they were selecting text
+      if (!event.detail) return;                          // keyboard "click", no position
+      particles.burst(event.clientX, event.clientY);
+    });
   }
 
   /* ---------- Go ---------- */
@@ -1186,5 +1255,6 @@
   renderProjects();
   initTitle();
   initTilt(); // after renderProjects so the new cards get tilt too
-  initParticles();
+  const particles = initParticles();
+  initClickBursts(particles);
 })();
