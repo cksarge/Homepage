@@ -1,0 +1,48 @@
+Make a preview image for this project to use on its card on my personal website, carterscoding.com.
+
+First, learn about the project from whatever you have access to (the code, README, app icon or logo files, screenshots, or its live website). Figure out what it does, what its logo looks like, what its brand colors are, whether it has a dark mode, and whether it's a game. Then follow the matching style below. If I attached example card images, use them as references for the look and layout.
+
+
+REQUIRED SPECS (EVERY IMAGE)
+
+- Size: exactly 1200 x 900 pixels (4:3 landscape). The website shows the image at 4:3 with no cropping, so don't use any other size or shape.
+- Format: PNG, sRGB, fully opaque (no transparency). Try to keep it under about 300 KB.
+- No text in the image: no project name, no tagline, no readable words anywhere. The website adds the project title on top of the image. If you draw any app interface, use rounded gray bars as placeholder "text" instead of real words.
+- Keep the bottom-left calm. On the website, the bottom 40% or so of the image sits under a dark gradient (nearly black at the very bottom, fading to clear about 60% of the way up), and the project title and an "open" link sit in the bottom-left corner on top of it. Don't put anything important in the bottom-left; it will be darkened and covered. The top half stays fully visible.
+- Keep a margin. The image zooms in about 8% when someone hovers over the card, and the card has rounded corners, so the outer 50 pixels or so of each edge can get cut off. Keep logos and important details at least 60 pixels from the edges. Large background shapes can bleed off the edges on purpose.
+- It sits on a dark website. The site is near-black (#050806) with neon green accents (#00ff9c). The image doesn't need to be green, but it should look good next to a dark page. Avoid large areas of bright white.
+
+
+STYLE A: APPS, BROWSER EXTENSIONS, TOOLS, AND WEBSITES (anything with a logo)
+
+1. Background: a smooth, full-bleed gradient in the project's main brand color. Keep it simple, with a faint texture at most (for example, a subtle dot grid in one corner).
+
+2. Logo in the top-left: put the project's icon or logo about 185 x 185 pixels, with its top-left corner about 60 pixels from the top and left edges. Give it a soft drop shadow so it lifts off the background. If the logo isn't already a filled, square app icon, put it on a slightly lighter rounded or circular tile.
+
+3. A large motif on the right that relates to the project: one big shape or mockup that fills roughly the right half of the image, starts around the horizontal middle (about 630 pixels from the left), and bleeds off the right edge (and off the top or bottom too if that looks better). It should hint at what the project does at a glance. Two examples:
+   - For a Pomodoro timer browser extension: a huge circular timer ring, about 740 pixels across, partly filled with a rounded progress arc, cropped off the top-right corner.
+   - For a Mac app that remaps keyboard shortcuts: a Mac window mockup of the app's settings screen, cropped off the right and bottom edges.
+
+4. Optional: a smaller secondary element that bridges the logo and the motif, overlapping the motif's left edge. For example, the keyboard app's card has a small menu-bar dropdown floating at about x 415 to 710, y 185 to 445. Leave this out if it would make the image feel busy.
+
+5. Leave the left side below the logo mostly empty, because that's where the website puts the title.
+
+6. Use dark-mode colors, even if the project is normally light mode. For example, the Pomodoro timer is light mode in real life, but its card uses its dark-mode palette (a warm near-black background with coral/tomato accents) so it fits the dark website. Only use light or bright backgrounds if they're rich and saturated, like a deep royal blue.
+
+7. Keep the look flat, crisp, and modern: clean vector shapes, subtle shadows and gradients, rounded corners. No photos, no 3D renders, and no busy illustrations.
+
+If you can write code, the cleanest way to get crisp results is to build the design as an HTML or SVG page that is exactly 1200 x 900 pixels and export it as a PNG.
+
+
+STYLE B: GAMES
+
+- No logo and no title. Fill the entire image with one striking scene from the game that shows what it's about: the setting, the art style, and a bit of the action. For example, a top-down strategy game's card shows a village at the edge of an autumn forest, with houses, lampposts, a watchtower, and armored soldiers in the middle of a fight.
+- Make it full-bleed and detailed, with interesting things spread across the frame, but put the most eye-catching part in the upper two-thirds, since the bottom gets darkened.
+- No game interface: no HUD, health bars, menus, cursors, or on-screen text.
+- Match the game's real art style. Ideally use or recreate an actual in-game view instead of inventing a new look. If the game uses pixel art, scale it up with nearest-neighbor scaling (no blurring) and crop it to exactly 1200 x 900.
+
+
+WHAT TO DELIVER
+
+- One PNG image, exactly 1200 x 900 pixels, named after the project in lowercase with hyphens between words (for example, "my-project-name.png").
+- Before you finish, check the image against the required specs: the exact size, no text, a calm bottom-left, and nothing important within 60 pixels of the edges.
