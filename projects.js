@@ -26,4 +26,14 @@ const PROJECTS = [
     image: "images/mac-remapper.png",
     url: "https://cksarge.github.io/Mac-Remapper/",
   },
+  {
+    title: "Ports of Plague",
+    image: "images/ports-of-plague.png",
+    url: "https://cksarge.github.io/Ports-of-Plague/",
+  },
+  {
+    title: "ASCII Art Converter",
+    image: "images/ascii-art-converter.png",
+    url: "https://cksarge.github.io/ASCII-art-converter/",
+  },
 ];
