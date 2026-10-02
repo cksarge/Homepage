@@ -14,26 +14,26 @@ const PROJECTS = [
   {
     title: "Four Kingdoms",
     image: "images/four-kingdoms.png",
-    url: "https://cksarge.github.io/Four-Kingdoms/",
+    url: "https://fourkingdoms.carterscoding.com/",
   },
   {
     title: "OpenTomato",
     image: "images/opentomato.png",
-    url: "https://cksarge.github.io/OpenTomato/",
+    url: "https://opentomato.carterscoding.com/",
   },
   {
     title: "Mac Remapper",
     image: "images/mac-remapper.png",
-    url: "https://cksarge.github.io/Mac-Remapper/",
+    url: "https://macremapper.carterscoding.com/",
   },
   {
     title: "Ports of Plague",
     image: "images/ports-of-plague.png",
-    url: "https://cksarge.github.io/Ports-of-Plague/",
+    url: "https://portsofplague.carterscoding.com/",
   },
   {
     title: "ASCII Art Converter",
     image: "images/ascii-art-converter.png",
-    url: "https://cksarge.github.io/ASCII-art-converter/",
+    url: "https://asciiartconverter.carterscoding.com/",
   },
 ];
