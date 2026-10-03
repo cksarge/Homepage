@@ -836,6 +836,33 @@ main:focus {
   font-size: 1.5rem;
 }
 
+.contact {
+  margin: var(--space-6) 0 0;
+  color: var(--c-text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.contact__link {
+  color: var(--c-accent);
+  overflow-wrap: anywhere;
+  text-decoration-color: rgba(var(--c-accent-rgb), 0.4);
+  text-underline-offset: 3px;
+  transition: text-shadow var(--dur-fast), text-decoration-color var(--dur-fast);
+}
+
+.contact__link:hover,
+.contact__link:focus-visible {
+  text-decoration-color: currentColor;
+  text-shadow: var(--glow-text);
+}
+
+.contact__link:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 .gh-icon {
   flex: none;
   width: 48px;
