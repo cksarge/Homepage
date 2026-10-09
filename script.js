@@ -602,6 +602,17 @@
       fxLayer.appendChild(el);
       return el;
     };
+    // Same, but placed on the page at viewport point (x, y), so it scrolls
+    // along with the title instead of staying stuck to the screen
+    const page = document.querySelector(".page");
+    const pinned = (className, html, x, y) => {
+      const el = fx(`fx-pinned ${className}`, html);
+      const origin = page.getBoundingClientRect();
+      page.appendChild(el);
+      el.style.left = `${x - origin.left}px`;
+      el.style.top = `${y - origin.top}px`;
+      return el;
+    };
     const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
     // DVD screensaver: the title shrinks into a logo, bounces around the
@@ -738,9 +749,7 @@
     // Caps lock: a caps lock key lights up and the title YELLS for a moment
     async function capslock() {
       const rect = textEl.getBoundingClientRect();
-      const key = fx("keycap", '<span class="keycap__led"></span><span>⇪ caps lock</span>');
-      key.style.left = `${rect.left + rect.width / 2}px`;
-      key.style.top = `${rect.top}px`;
+      const key = pinned("keycap", '<span class="keycap__led"></span><span>⇪ caps lock</span>', rect.left + rect.width / 2, rect.top);
       const press = () =>
         key.animate([{ transform: "none" }, { transform: "translateY(3px) scale(0.97)" }, { transform: "none" }], { duration: 160 }).finished;
 
@@ -776,15 +785,12 @@
     // then it gets plugged in and everything brightens back up
     async function battery() {
       const c = cursor.getBoundingClientRect();
-      const cell = fx(
+      const cell = pinned(
         "battery",
-        '<div class="battery__level"></div><svg class="battery__bolt" viewBox="0 0 24 24"><path d="M13.5 1.5 3.5 14h7l-1.5 8.5 11-13h-7z"/></svg>'
+        '<div class="battery__level"></div><svg class="battery__bolt" viewBox="0 0 24 24"><path d="M13.5 1.5 3.5 14h7l-1.5 8.5 11-13h-7z"/></svg>',
+        c.left,
+        c.top
       );
-      // Lives in the title button, not the fixed fx layer, so it scrolls with the page
-      const b = button.getBoundingClientRect();
-      button.appendChild(cell);
-      cell.style.left = `${c.left - b.left}px`;
-      cell.style.top = `${c.top - b.top}px`;
       cell.style.width = `${c.width}px`;
       cell.style.height = `${c.height}px`;
       cell.style.fontSize = getComputedStyle(textEl).fontSize;
@@ -843,9 +849,7 @@
 
       lockWidths();
       // Red squiggly "spelling mistake" underline
-      const squiggle = fx("squiggle");
-      squiggle.style.left = `${rect.left}px`;
-      squiggle.style.top = `${rect.top + rect.height * 0.5 + fontSize * 0.42}px`;
+      const squiggle = pinned("squiggle", "", rect.left, rect.top + rect.height * 0.5 + fontSize * 0.42);
       squiggle.style.width = `${rect.width}px`;
       await squiggle.animate([{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], {
         duration: 350,
@@ -855,9 +859,12 @@
       await wait(250);
 
       // Suggestion bubble
-      const bubble = fx("autocorrect", `Did you mean <b>${WRONG.trim()}</b>?`);
-      bubble.style.left = `${rect.left + rect.width / 2}px`;
-      bubble.style.top = `${rect.top + rect.height * 0.5 + fontSize * 0.62}px`;
+      const bubble = pinned(
+        "autocorrect",
+        `Did you mean <b>${WRONG.trim()}</b>?`,
+        rect.left + rect.width / 2,
+        rect.top + rect.height * 0.5 + fontSize * 0.62
+      );
       await bubble.animate([{ opacity: 0, transform: "translateY(-6px) scale(0.9)" }, { opacity: 1, transform: "none" }], {
         duration: 200,
         easing: "ease-out",
@@ -884,11 +891,9 @@
     // counts 0% → 100% (getting stuck at 99%, of course), sharpening as it loads
     async function buffering() {
       const rect = textEl.getBoundingClientRect();
-      const spinner = fx("spinner", '<span class="spinner__pct">0%</span>');
+      const spinner = pinned("spinner", '<span class="spinner__pct">0%</span>', rect.left + rect.width / 2, rect.top + rect.height / 2);
       const size = Math.round(clamp(rect.height * 0.8, 44, 72));
       spinner.style.setProperty("--s", `${size}px`);
-      spinner.style.left = `${rect.left + rect.width / 2}px`;
-      spinner.style.top = `${rect.top + rect.height / 2}px`;
       const label = spinner.querySelector(".spinner__pct");
       const MAX_BLUR = 7;
 

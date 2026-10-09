@@ -195,6 +195,11 @@ a {
   pointer-events: none;
 }
 
+/* Effects pinned to the page (not the fixed layer) so they scroll with the title */
+.fx-pinned {
+  pointer-events: none;
+}
+
 /* All real content sits above the background layers.
    overflow-x: clip stops flying title letters from creating a horizontal scrollbar. */
 .page {
