@@ -780,8 +780,11 @@
         "battery",
         '<div class="battery__level"></div><svg class="battery__bolt" viewBox="0 0 24 24"><path d="M13.5 1.5 3.5 14h7l-1.5 8.5 11-13h-7z"/></svg>'
       );
-      cell.style.left = `${c.left}px`;
-      cell.style.top = `${c.top}px`;
+      // Lives in the title button, not the fixed fx layer, so it scrolls with the page
+      const b = button.getBoundingClientRect();
+      button.appendChild(cell);
+      cell.style.left = `${c.left - b.left}px`;
+      cell.style.top = `${c.top - b.top}px`;
       cell.style.width = `${c.width}px`;
       cell.style.height = `${c.height}px`;
       cell.style.fontSize = getComputedStyle(textEl).fontSize;
