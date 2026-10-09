@@ -36,4 +36,9 @@ const PROJECTS = [
     image: "images/ascii-art-converter.png",
     url: "https://asciiartconverter.carterscoding.com/",
   },
+  {
+    title: "Seventy-Three",
+    image: "images/seventy-three.png",
+    url: "https://73.carterscoding.com/",
+  },
 ];
