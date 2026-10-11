@@ -41,4 +41,9 @@ const PROJECTS = [
     image: "images/seventy-three.png",
     url: "https://73.carterscoding.com/",
   },
+  {
+    title: "All In",
+    image: "images/all-in.png",
+    url: "https://allin.carterscoding.com/",
+  },
 ];
