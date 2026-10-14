@@ -3,29 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Only files from this site may load or run (data: is for the inline favicon
+       and the squiggle image in styles.css). Framing protection needs a response
+       header, which GitHub Pages can't send. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>carterscoding</title>
   <meta name="description" content="carterscoding: projects, experiments, and things Carter has built.">
   <meta name="theme-color" content="#050806">
+  <link rel="canonical" href="https://carterscoding.com/">
 
   <!-- Social preview -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="carterscoding">
   <meta property="og:description" content="Projects, experiments, and things Carter has built.">
   <meta property="og:url" content="https://carterscoding.com/">
+  <meta property="og:image" content="https://carterscoding.com/images/social-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The carterscoding homepage: a glowing green terminal-style title">
+  <meta name="twitter:card" content="summary_large_image">
 
-  <!-- Favicon: a green ">_" drawn inline, so there's no extra file to load -->
+  <!-- Favicon: a green ">_" drawn inline (colors match --c-bg and --c-accent).
+       favicon.ico and apple-touch-icon.png are the same picture for older
+       browsers and phone home screens. -->
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050806'/%3E%3Cpath d='M7 10l6 6-6 6' fill='none' stroke='%2300ff9c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='15' y='21' width='10' height='3' rx='1' fill='%2300ff9c'/%3E%3C/svg%3E">
 
-  <!-- Font (falls back to the system monospace font if this can't load) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+  <!-- Font: JetBrains Mono from fonts/ (see @font-face in styles.css). Start
+       downloading it now; text shows in the fallback font until it arrives. -->
+  <link rel="preload" href="fonts/jetbrains-mono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/jetbrains-mono-latin-700.woff2" as="font" type="font/woff2" crossorigin>
 
-  <link rel="stylesheet" href="styles.css">
+  <!-- ?v=… makes browsers fetch fresh copies after a deploy (GitHub Pages lets
+       them cache for 10 minutes). Bump it whenever these files change. -->
+  <link rel="stylesheet" href="styles.css?v=2026-10-13">
 
   <!-- defer: run after the HTML is parsed, in this order -->
-  <script src="projects.js" defer></script>
-  <script src="script.js" defer></script>
+  <script src="projects.js?v=2026-10-13" defer></script>
+  <script src="script.js?v=2026-10-13" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#projects">Skip to projects</a>

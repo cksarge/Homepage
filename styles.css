@@ -1,18 +1,38 @@
 /* =============================================================
    carterscoding.com — styles
    -------------------------------------------------------------
-   Everything themeable lives in :root below. Change the values
-   there to retheme the whole site (the particle canvas reads
-   --c-accent-rgb and --font-mono too).
+   Everything themeable in this file lives in :root below (the
+   particle canvas reads --c-accent-rgb and --font-mono too). A few
+   colors also live outside CSS; README "Change the look" lists them.
    ============================================================= */
+
+/* JetBrains Mono, served from this site (fonts/, SIL Open Font License).
+   Only the Latin letters are included; anything else falls back to the
+   next font in --font-mono. */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/jetbrains-mono-latin-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/jetbrains-mono-latin-700.woff2") format("woff2");
+}
 
 :root {
   /* ---------- Colors ---------- */
   --c-bg: #050806;                 /* page background */
-  --c-bg-rgb: 5, 8, 6;             /* same as --c-bg, for rgba() overlays */
+  --c-bg-rgb: 5, 8, 6;             /* same as --c-bg, for rgba() overlays (change both together) */
   --c-bg-raised: #0a130e;          /* card background (shows if an image is missing) */
+  --c-card-fallback: #0d2419;      /* tint of the pattern shown when a card image is missing */
   --c-accent: #00ff9c;             /* neon terminal green */
-  --c-accent-rgb: 0, 255, 156;     /* same as --c-accent, for rgba() glows + canvas */
+  --c-accent-rgb: 0, 255, 156;     /* same as --c-accent with commas, for rgba() glows + canvas (change both together) */
   --c-accent-2: #00d8c4;           /* teal secondary accent */
   --c-text: #dcffe9;               /* main text */
   --c-text-dim: #b4d6c4;           /* card descriptions */
@@ -22,10 +42,16 @@
   --c-glitch-a: #ff2d6f;           /* RGB-split colors for the glitch animation */
   --c-glitch-b: #00e5ff;
 
-  /* Moving background gradient blobs */
-  --c-bg-glow-1: rgba(0, 255, 156, 0.11);
+  /* Moving background gradient blobs. The first follows the accent; the
+     other two are a teal and a deep green, so retint them with it. */
+  --c-bg-glow-1: rgba(var(--c-accent-rgb), 0.11);
   --c-bg-glow-2: rgba(0, 200, 190, 0.09);
   --c-bg-glow-3: rgba(0, 120, 75, 0.18);
+
+  /* Split-flap title tiles (the "flap" effect) */
+  --c-flap-top: #10211a;
+  --c-flap-gap: #020403;
+  --c-flap-bottom: #0b1812;
 
   /* ---------- Glows ---------- */
   --glow-text: 0 0 6px rgba(var(--c-accent-rgb), 0.55), 0 0 24px rgba(var(--c-accent-rgb), 0.25);
@@ -43,7 +69,6 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
-  --space-7: 3rem;
   --space-8: 4.5rem;
   --gutter: clamp(16px, 4vw, 40px);  /* side padding (16px on phones) */
   --max-width: 1200px;
@@ -185,8 +210,9 @@ a {
   pointer-events: none;
 }
 
-/* Overlay for effects that need to cover the viewport (shockwave rings).
-   overflow: hidden means they can never cause scrollbars. */
+/* Overlay for effects that cover the whole viewport: shockwave rings,
+   Matrix rain, the DVD logo and its confetti. overflow: hidden means they
+   can never cause scrollbars. Effects tied to the title use .fx-pinned. */
 .fx-layer {
   position: fixed;
   inset: 0;
@@ -195,7 +221,8 @@ a {
   pointer-events: none;
 }
 
-/* Effects pinned to the page (not the fixed layer) so they scroll with the title */
+/* Effects pinned to the page (not the fixed layer) so they scroll with the
+   title: CRT beam, caps lock key, battery, autocorrect, buffering spinner */
 .fx-pinned {
   pointer-events: none;
 }
@@ -206,6 +233,7 @@ a {
   position: relative;
   z-index: 2;
   overflow-x: clip;
+  padding-bottom: var(--banner-space, 0px);  /* room for the 404 banner while it's showing (set by script.js) */
 }
 
 .container {
@@ -268,7 +296,7 @@ a {
 }
 
 .title__char.is-scrambling { color: var(--c-accent-2); opacity: 0.8; }
-.title__char.is-resolved   { animation: char-flash 0.45s ease-out; }
+.title__char.is-resolved   { animation: char-flash 0.45s ease-out; } /* FLASH_MS in script.js matches */
 .title__char.is-hidden     { visibility: hidden; }
 .title__char.is-glitched   { color: var(--c-glitch-a); }
 
@@ -384,7 +412,7 @@ a {
   inset: 0.05em 0.03em;
   z-index: -1;
   border-radius: 0.08em;
-  background: linear-gradient(to bottom, #10211a 0 48%, #020403 48% 52%, #0b1812 52% 100%);
+  background: linear-gradient(to bottom, var(--c-flap-top) 0 48%, var(--c-flap-gap) 48% 52%, var(--c-flap-bottom) 52% 100%);
   box-shadow: inset 0 0 0 1px rgba(var(--c-accent-rgb), 0.18);
   animation: tile-in 0.15s ease-out;
   transition: opacity 0.3s;
@@ -398,7 +426,8 @@ a {
   from { opacity: 0; }
 }
 
-/* ---------- Everyday-computer jokes (built by script.js on the fx layer) ---------- */
+/* ---------- Everyday-computer jokes (built by script.js: the DVD logo and
+   confetti on the fx layer, the rest pinned to the page with .fx-pinned) ---------- */
 
 /* DVD screensaver logo */
 .dvd {
@@ -683,7 +712,7 @@ main:focus {
   z-index: -1;
   background:
     repeating-linear-gradient(45deg, rgba(var(--c-accent-rgb), 0.05) 0 2px, transparent 2px 14px),
-    linear-gradient(135deg, #0d2419, var(--c-bg));
+    linear-gradient(135deg, var(--c-card-fallback), var(--c-bg));
 }
 
 .card__img {
@@ -917,13 +946,7 @@ main:focus {
   border-radius: var(--radius);
   background: rgba(var(--c-bg-rgb), 0.94);
   box-shadow: var(--shadow-card), 0 0 24px rgba(var(--c-accent-rgb), 0.18);
-  animation: banner-in var(--dur-med) var(--ease-out) both;
-  transition: opacity 0.3s, transform 0.3s;
-}
-
-.banner.is-leaving {
-  opacity: 0;
-  transform: translateY(12px);
+  animation: banner-in var(--dur-med) var(--ease-out) 0.1s both;  /* its text arrives 0.1s in (see script.js) */
 }
 
 @keyframes banner-in {
@@ -988,7 +1011,8 @@ main:focus {
   }
 
   #particles,
-  .fx-layer {
+  .fx-layer,
+  .fx-pinned {
     display: none;
   }
 
@@ -1017,6 +1041,9 @@ main:focus {
   .skip-link,
   .banner {
     animation: none;
+  }
+
+  .skip-link {
     transition: none;
   }
 }

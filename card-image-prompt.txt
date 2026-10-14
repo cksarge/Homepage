@@ -5,10 +5,10 @@ First, learn about the project from whatever you have access to (the code, READM
 
 REQUIRED SPECS (EVERY IMAGE)
 
-- Size: exactly 1200 x 900 pixels (4:3 landscape). The website shows the image at 4:3 with no cropping, so don't use any other size or shape.
+- Size: exactly 1200 x 900 pixels (4:3 landscape). The website shows the image at 4:3, so don't use any other size or shape. (On very narrow screens the sides can be trimmed slightly; see the margin rule below.)
 - Format: PNG, sRGB, fully opaque (no transparency). Try to keep it under about 300 KB.
 - No text in the image: no project name, no tagline, no readable words anywhere. The website adds the project title on top of the image. If you draw any app interface, use rounded gray bars as placeholder "text" instead of real words.
-- Keep the bottom-left calm. On the website, the bottom 40% or so of the image sits under a dark gradient (nearly black at the very bottom, fading to clear about 60% of the way up), and the project title and an "open" link sit in the bottom-left corner on top of it. Don't put anything important in the bottom-left; it will be darkened and covered. The top half stays fully visible.
+- Keep the bottom-left calm. On the website a dark gradient sits over the image: the bottom 30% or so is heavily darkened (nearly black at the very bottom), it fades to a light dim about 60% of the way up, and the top is only slightly tinted. The project title and an "open" link sit in the bottom-left corner on top of it. Don't put anything important in the bottom-left; it will be darkened and covered. The top half stays clearly visible.
 - Keep a margin. The image zooms in about 8% when someone hovers over the card, and the card has rounded corners, so the outer 50 pixels or so of each edge can get cut off. Keep logos and important details at least 60 pixels from the edges. Large background shapes can bleed off the edges on purpose.
 - It sits on a dark website. The site is near-black (#050806) with neon green accents (#00ff9c). The image doesn't need to be green, but it should look good next to a dark page. Avoid large areas of bright white.
 

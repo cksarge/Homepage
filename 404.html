@@ -3,19 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Only this page's own inline script and style may run; nothing is loaded -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Page not found | carterscoding</title>
   <meta name="robots" content="noindex">
+  <!-- Colors here repeat --c-bg, --c-text and --c-accent from styles.css (this
+       page can't load styles.css from every possible URL depth) -->
   <meta name="theme-color" content="#050806">
 
   <!-- GitHub Pages serves this file for any URL that doesn't exist.
        It sends the visitor straight to the homepage, which shows a
        "you've been redirected" banner (see section 6 of script.js). -->
   <script>
-    // replace() keeps the bad URL out of the Back button's history
-    window.location.replace("/?notfound=" + encodeURIComponent(window.location.pathname));
+    // The homepage is "/" on carterscoding.com. If the custom domain is ever
+    // removed, GitHub serves the site from cksarge.github.io/Homepage/ instead.
+    var home = /\.github\.io$/.test(window.location.hostname) ? "/Homepage/" : "/";
+    var path = window.location.pathname;
+
+    // Hand the bad URL to the homepage through sessionStorage rather than the
+    // address bar, so a link to the bare homepage can't show a fake banner and
+    // no extra homepage URLs exist. (A link to a made-up path still shows that
+    // path in the banner; script.js keeps it short and plain.) The timestamp
+    // lets the homepage ignore an entry left over from an earlier redirect.
+    // The key must match NOT_FOUND_KEY in script.js (section 6).
+    // Opening /404.html itself isn't a bad URL, so it gets no banner.
+    if (!/\/404\.html$/.test(path)) {
+      try {
+        window.sessionStorage.setItem(
+          "carterscoding:notfound",
+          JSON.stringify({ path: path + window.location.search + window.location.hash, t: Date.now() })
+        );
+      } catch (e) { /* storage blocked: still redirect, just without the banner */ }
+    }
+
+    // replace() keeps the bad URL out of the Back button's history.
+    // (If the homepage itself is ever missing, stay here rather than loop.)
+    if (path !== home) window.location.replace(home);
   </script>
 
-  <!-- No JavaScript: redirect anyway (the homepage just won't show the banner) -->
+  <!-- No JavaScript: redirect anyway (the homepage just won't show the banner).
+       This can't know the github.io folder above, so it always goes to "/". -->
   <noscript><meta http-equiv="refresh" content="0; url=/"></noscript>
 
   <style>
@@ -35,6 +63,7 @@
 </head>
 <body>
   <!-- Only seen for a moment, or if the redirect is blocked -->
-  <p>That page doesn't exist. Taking you to <a href="/">carterscoding.com</a>…</p>
+  <p>That page doesn't exist. Taking you to <a id="home-link" href="/">the homepage</a>…</p>
+  <script>document.getElementById("home-link").href = home;</script>
 </body>
 </html>

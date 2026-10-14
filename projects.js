@@ -5,9 +5,10 @@
  * and change the values. Cards appear in the same order as this list.
  *
  *   title   (required) Card heading.
- *   image   (required) Background image path, e.g. "images/my-game.webp".
- *           Use 1200×900 (4:3, same shape as the cards).
+ *   image   (required) Background image path, e.g. "images/my-game.png".
+ *           Use a 1200×900 PNG (4:3, same shape as the cards).
  *   url     (required) Where the card goes when clicked (opens in the same tab).
+ *           Must be https://…, http://…, or a path on this site.
  *   alt     (optional) Alt text for the image. Defaults to "Preview of <title>".
  */
 const PROJECTS = [

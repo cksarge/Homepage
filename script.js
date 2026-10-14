@@ -23,6 +23,12 @@
   const rand = (min, max) => Math.random() * (max - min) + min;
   const cssVar = (name) =>
     getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  // The visible viewport, minus any scrollbar (innerWidth includes it), which is
+  // exactly the area the fixed canvas and effects layer cover
+  const viewport = () => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  });
 
   /* =============================================================
      1. Project cards
@@ -32,9 +38,16 @@
     const grid = document.getElementById("project-grid");
     if (!grid) return;
 
-    // PROJECTS is a top-level const in projects.js
-    const projects =
-      typeof PROJECTS !== "undefined" && Array.isArray(PROJECTS) ? PROJECTS : [];
+    // PROJECTS is a top-level const in projects.js. Reading it can throw if
+    // projects.js crashed partway through, so treat that as "no projects".
+    let list = [];
+    try {
+      list = typeof PROJECTS !== "undefined" && Array.isArray(PROJECTS) ? PROJECTS : [];
+    } catch {
+      /* projects.js failed to run */
+    }
+    // Skip stray entries (a lone null or a typo) instead of breaking every card
+    const projects = list.filter((project) => project && typeof project === "object");
 
     if (projects.length === 0) {
       const empty = document.createElement("li");
@@ -56,15 +69,17 @@
    *   <span class="card__glare"></span>
    *   <div class="card__body"><h3>title</h3><span>open →</span></div>
    * </a></li>
-   * textContent is used everywhere, so project text can never inject HTML.
+   * Project data is only ever set with textContent (the one innerHTML below is
+   * fixed markup), so project text can never inject HTML.
    */
   function createCard(project, index) {
     const id = `project-${index}`;
+    const name = project.title || "Untitled project";
     const item = document.createElement("li");
 
     const card = document.createElement("a");
     card.className = "card";
-    card.href = project.url || "#";
+    card.href = safeUrl(project.url);
     card.style.setProperty("--i", index); // staggered fade-in
     // Screen readers announce just the title as the link name
     card.setAttribute("aria-labelledby", `${id}-title`);
@@ -75,11 +90,14 @@
     if (project.image) {
       const img = document.createElement("img");
       img.className = "card__img";
-      img.loading = "lazy"; // set before src so the lazy hint applies
+      // The first row is on screen straight away, so load it right away;
+      // the rest wait until they're scrolled near. Set before src so it applies.
+      img.loading = index < 3 ? "eager" : "lazy";
+      if (index === 0) img.fetchPriority = "high";
       img.decoding = "async";
-      img.width = 1200;
-      img.height = 800;
-      img.alt = project.alt || `Preview of ${project.title}`;
+      img.width = 1200; // card images are 1200×900 (4:3, same as the card)
+      img.height = 900;
+      img.alt = project.alt || `Preview of ${name}`;
       // If the image is missing, fall back to the patterned background
       img.addEventListener("error", () => card.classList.add("card--no-image"), { once: true });
       img.src = project.image;
@@ -98,7 +116,7 @@
     const title = document.createElement("h3");
     title.className = "card__title";
     title.id = `${id}-title`;
-    title.textContent = project.title || "Untitled project";
+    title.textContent = name;
 
     const cta = document.createElement("span");
     cta.className = "card__cta";
@@ -109,6 +127,18 @@
     card.append(media, glare, body);
     item.appendChild(card);
     return item;
+  }
+
+  // Only http(s) links or links on this site; anything else (javascript:,
+  // data:, a typo) becomes "#" so a card can never run code when clicked
+  function safeUrl(url) {
+    if (!url) return "#";
+    try {
+      const parsed = new URL(url, window.location.href);
+      return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : "#";
+    } catch {
+      return "#";
+    }
   }
 
   /* =============================================================
@@ -123,10 +153,34 @@
     const button = document.getElementById("title-btn");
     const textEl = document.getElementById("title-text");
     const fxLayer = document.getElementById("fx-layer");
-    if (!button || !textEl) return;
+    const cursor = button && button.querySelector(".cursor");
+    const page = document.querySelector(".page");
+    if (!button || !textEl || !fxLayer || !cursor || !page) return;
 
-    const cursor = button.querySelector(".cursor");
     const word = textEl.textContent.trim();
+
+    // The effect that's playing right now, so it can be stopped part-way
+    // (window resized, reduced motion switched on): its pending waits are
+    // cancelled, its animations are cancelled, and reset() tidies up.
+    let current = null;
+    // Every element an effect adds, so reset() can always remove them
+    const effectNodes = new Set();
+
+    // Like the shared wait(), but stops (rejects) if the effect is stopped
+    const wait = (ms) =>
+      new Promise((resolve, reject) => {
+        const run = current;
+        const cancel = () => {
+          clearTimeout(timer);
+          reject(new DOMException("Effect stopped", "AbortError"));
+        };
+        const timer = setTimeout(() => {
+          if (run) run.cancels.delete(cancel);
+          resolve();
+        }, ms);
+        if (run) run.cancels.add(cancel);
+      });
+    const stopped = () => !current || current.stopped;
 
     // Split the word into one <span> per letter so each can be animated
     textEl.textContent = "";
@@ -164,6 +218,7 @@
         let lastSwap = 0;
 
         function frame(now) {
+          if (stopped()) return resolve();
           const elapsed = now - start;
           const swap = now - lastSwap > 50; // ~20 glyph changes per second
           if (swap) lastSwap = now;
@@ -180,7 +235,7 @@
           });
 
           if (elapsed < end) requestAnimationFrame(frame);
-          else wait(450).then(resolve); // let the last flash finish
+          else wait(FLASH_MS).then(resolve, resolve); // let the last flash finish
         }
         requestAnimationFrame(frame);
       });
@@ -211,13 +266,13 @@
 
     // RGB-split glitch (CSS keyframes) plus a few corrupted letters
     async function glitch() {
+      let onEnd;
       const cssDone = new Promise((resolve) => {
-        const onEnd = (event) => {
-          if (event.target !== textEl) return;
-          textEl.removeEventListener("animationend", onEnd);
-          resolve();
+        onEnd = (event) => {
+          if (event.target === textEl) resolve();
         };
         textEl.addEventListener("animationend", onEnd);
+        textEl.addEventListener("animationcancel", onEnd);
       });
       textEl.classList.add("fx-glitch");
 
@@ -229,21 +284,26 @@
         chars[i].textContent = word[i];
         chars[i].classList.remove("is-glitched");
       }
-      await cssDone;
+      try {
+        // The CSS animation is ~0.6s; don't hang if it never runs or never ends
+        await Promise.race([cssDone, wait(1500)]);
+      } finally {
+        textEl.removeEventListener("animationend", onEnd);
+        textEl.removeEventListener("animationcancel", onEnd);
+      }
     }
 
     // Green rings burst from the click point; letters bounce as the wave passes
     function shockwave(event) {
       const { x, y } = clickPoint(event);
 
-      const size = Math.max(window.innerWidth, window.innerHeight) * 1.2;
+      const { width, height } = viewport();
+      const size = Math.max(width, height) * 1.2;
       const rings = [0, 150].map((delay) => {
-        const ring = document.createElement("div");
-        ring.className = "shockwave";
+        const ring = fx("shockwave");
         ring.style.setProperty("--size", `${size}px`);
         ring.style.left = `${x}px`;
         ring.style.top = `${y}px`;
-        fxLayer.appendChild(ring);
         return ring
           .animate(
             [
@@ -305,12 +365,8 @@
     // glowing line, shrinks to a dot, goes dark, then reverses.
     function crt() {
       const rect = button.getBoundingClientRect();
-      const beam = document.createElement("div");
-      beam.className = "crt-beam";
-      beam.style.left = `${rect.left + rect.width / 2}px`;
-      beam.style.top = `${rect.top + rect.height / 2}px`;
+      const beam = pinned("crt-beam", "", rect.left + rect.width / 2, rect.top + rect.height / 2);
       beam.style.width = `${rect.width}px`;
-      fxLayer.appendChild(beam);
 
       // Easing goes on each step (not the whole animation) so the
       // line/dot/off moments land exactly at their offsets
@@ -366,7 +422,7 @@
 
       const drops = chars.map((span, i) => {
         const rect = span.getBoundingClientRect();
-        const fall = Math.max(window.innerHeight - rect.top, 0); // all the way off the bottom
+        const fall = Math.max(viewport().height - rect.top, 0); // all the way off the bottom
         const delay = i * 30 + rand(0, 180);
         // Longer drops take longer, so the speed feels the same on any screen
         const duration = Math.min(Math.max(fall * rand(2, 2.6), 900), 2200);
@@ -375,8 +431,7 @@
         // lowercase letters begin), so the trail stays hidden until the letter
         // falls, then hugs it all the way down
         const attach = rect.height * 0.28;
-        const column = document.createElement("div");
-        column.className = "rain";
+        const column = fx("rain");
         column.style.left = `${rect.left + rect.width / 2}px`;
         column.style.top = `${rect.top + attach}px`;
         column.style.height = `${fall + rect.height}px`;
@@ -394,7 +449,6 @@
           strip.appendChild(glyph);
         }
         column.appendChild(strip);
-        fxLayer.appendChild(column);
 
         // Trail and letter move together: the strip's bottom edge tracks the letter
         const stripHeight = count * glyphSize * 1.1;
@@ -404,9 +458,10 @@
         );
         // The falling letter is a copy on the fixed effects layer, so it can
         // drop off the bottom of the screen without ever making the page
-        // taller. The real letter is hidden but keeps its space.
-        const letter = document.createElement("span");
-        letter.className = "rain-letter";
+        // taller. The real letter is hidden but keeps its space. (Being on the
+        // fixed layer, the drops don't follow the page if it scrolls mid-fall;
+        // that's the trade-off for never adding a scrollbar.)
+        const letter = fx("rain-letter");
         letter.textContent = span.textContent;
         letter.style.left = `${rect.left}px`;
         letter.style.top = `${rect.top}px`;
@@ -414,7 +469,6 @@
         letter.style.fontSize = letterStyle.fontSize;
         letter.style.fontWeight = letterStyle.fontWeight;
         letter.style.lineHeight = `${rect.height}px`;
-        fxLayer.appendChild(letter);
         span.classList.add("is-hidden");
 
         const drop = letter.animate(
@@ -508,11 +562,12 @@
       const slot = (i, pct) => {
         if (i < cells) {
           const filled = i < Math.round((pct / 100) * cells);
-          return [filled ? "█" : "░", filled ? "is-bar" : "is-bar-empty"];
+          return [filled ? "█" : "░", filled ? "" : "is-bar-empty"];
         }
-        if (i === cells) return [" ", ""];
-        const label = `${pct}%`.padStart(4, " ");
-        return [label[i - cells - 1] || " ", "is-meter"];
+        // NBSP rather than a plain space, so the empty slots keep their width
+        if (i === cells) return [NBSP, ""];
+        const label = `${pct}%`.padStart(4, NBSP);
+        return [label[i - cells - 1] || NBSP, "is-meter"];
       };
       const render = (pct) =>
         chars.forEach((span, i) => {
@@ -552,7 +607,7 @@
         chars[i].className = "title__char is-resolved";
         await wait(28);
       }
-      await wait(350);
+      await wait(FLASH_MS); // let the last letter's flash finish
     }
 
     // Jello: the word gets poked where you clicked, squishes, and wobbles
@@ -595,19 +650,22 @@
 
     /* ---- Everyday-computer jokes ---- */
 
-    // Make an element on the fixed effects layer (static markup only)
+    // Make an element on the fixed effects layer. html must be fixed markup
+    // written here, never text from a variable (use textContent for that).
     const fx = (className, html = "") => {
       const el = document.createElement("div");
       el.className = className;
       el.innerHTML = html;
       fxLayer.appendChild(el);
+      effectNodes.add(el);
       return el;
     };
     // Same, but placed on the page at viewport point (x, y), so it scrolls
-    // along with the title instead of staying stuck to the screen
-    const page = document.querySelector(".page");
+    // along with the title instead of staying stuck to the screen. It's
+    // decorative, so it's hidden from screen readers like the fx layer is.
     const pinned = (className, html, x, y) => {
       const el = fx(`fx-pinned ${className}`, html);
+      el.setAttribute("aria-hidden", "true");
       const origin = page.getBoundingClientRect();
       page.appendChild(el);
       el.style.left = `${x - origin.left}px`;
@@ -615,6 +673,8 @@
       return el;
     };
     const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
+    const NBSP = "\u00a0"; // no-break space: holds a letter's width where a space would collapse
+    const FLASH_MS = 450; // length of the white "resolved" flash (char-flash in styles.css)
 
     // DVD screensaver: the title shrinks into a logo, bounces around the
     // screen changing color, nails the corner, then flies home
@@ -632,13 +692,18 @@
       // Line the logo's text up exactly with the real title before swapping
       const boxRect = logo.getBoundingClientRect();
       const inner = logo.firstChild.getBoundingClientRect();
-      const startX = textRect.left - (inner.left - boxRect.left);
-      const startY = textRect.top + textRect.height / 2 - (inner.top - boxRect.top + inner.height / 2);
+      const offsetX = inner.left - boxRect.left;
+      const offsetY = inner.top - boxRect.top + inner.height / 2;
+      const startX = textRect.left - offsetX;
+      const startY = textRect.top + textRect.height / 2 - offsetY;
       const w = boxRect.width;
       const h = boxRect.height;
-      const scale = Math.min(Math.min(window.innerWidth * 0.42, 240) / w, 0.45);
-      const roomX = window.innerWidth - w * scale;   // how far the logo can travel
-      const roomY = window.innerHeight - h * scale;
+      const view = viewport();
+      const scale = Math.min(Math.min(view.width * 0.42, 240) / w, 0.45);
+      // How far the logo can travel (at least 1px, so the maths below never
+      // divides by zero on a very short or narrow window)
+      const roomX = Math.max(view.width - w * scale, 1);
+      const roomY = Math.max(view.height - h * scale, 1);
       const place = (x, y, s) => `translate(${x}px, ${y}px) scale(${s})`;
 
       textEl.style.visibility = "hidden";
@@ -652,7 +717,6 @@
         [{ transform: place(startX, startY, 1) }, { transform: place(x0, y0, scale) }],
         { duration: 450, easing: "cubic-bezier(.5,0,.3,1)", fill: "forwards" }
       ).finished;
-      logo.classList.add("is-logo"); // border fades in
 
       // 2. Bounce. The path is planned so it lands exactly in a corner at the
       // end: moving diagonally, each axis must travel a whole number of
@@ -672,6 +736,8 @@
           if (!best || score < best.score) best = { vx, vy, score };
         }
       }
+      // Can't happen with the 1px minimum above, but never get stuck without a path
+      if (!best) best = { vx: roomX / duration, vy: roomY / duration };
       // Unfold the straight-line distance back into the box (a triangle wave)
       const fold = (u, len) => {
         const m = ((u % (2 * len)) + 2 * len) % (2 * len);
@@ -686,13 +752,16 @@
       };
       logo.getAnimations().forEach((a) => a.cancel()); // hand position over to the loop
       logo.style.transform = place(x0, y0, scale);
-      await new Promise((resolve) => {
+      logo.classList.add("is-logo"); // border fades in (after the cancel, so its transition survives)
+      await new Promise((resolve, reject) => {
         let elapsed = 0;
         let last = performance.now();
         let lastBounces = 0;
         let color = 0;
         const step = (now) => {
-          elapsed = Math.min(elapsed + Math.min(now - last, 50), duration);
+          if (stopped()) return reject(new DOMException("Effect stopped", "AbortError"));
+          // Clamp both ways: the first frame's timestamp can be a hair before `last`
+          elapsed = Math.min(elapsed + Math.max(0, Math.min(now - last, 50)), duration);
           last = now;
           const { x, y, bounces } = at(elapsed);
           if (bounces !== lastBounces) {
@@ -709,9 +778,9 @@
 
       // 3. Corner! Celebrate with a flash and a burst of confetti
       const end = at(duration);
-      const cornerX = end.x < roomX / 2 ? 0 : window.innerWidth;
-      const cornerY = end.y < roomY / 2 ? 0 : window.innerHeight;
-      const inward = Math.atan2(window.innerHeight / 2 - cornerY, window.innerWidth / 2 - cornerX);
+      const cornerX = end.x < roomX / 2 ? 0 : view.width;
+      const cornerY = end.y < roomY / 2 ? 0 : view.height;
+      const inward = Math.atan2(view.height / 2 - cornerY, view.width / 2 - cornerX);
       const confetti = Array.from({ length: 16 }, (_, i) => {
         const bit = fx("confetti");
         bit.style.left = `${cornerX}px`;
@@ -725,19 +794,26 @@
             { transform: `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px) rotate(${rand(-360, 360)}deg)`, opacity: 0 },
           ],
           { duration: rand(600, 900), easing: "cubic-bezier(.2,.8,.3,1)" }
-        ).finished.then(() => bit.remove());
+        ).finished.then(
+          () => bit.remove(),
+          () => {} // stopped early: reset() removes it
+        );
       });
       await logo.animate(
         [{ filter: "brightness(1)" }, { filter: "brightness(2.2)" }, { filter: "brightness(1)" }, { filter: "brightness(2.2)" }, { filter: "brightness(1)" }],
         { duration: 650 }
       ).finished;
 
-      // 4. Fly home and turn back into the title
+      // 4. Fly home and turn back into the title. Measure again: the page
+      // may have scrolled since the start.
       const accent = cssVar("--c-accent") || "#00ff9c";
+      const home = textEl.getBoundingClientRect();
+      const homeX = home.left - offsetX;
+      const homeY = home.top + home.height / 2 - offsetY;
       await logo.animate(
         [
           { transform: place(end.x, end.y, scale), color: logo.style.color || accent },
-          { transform: place(startX, startY, 1), color: accent },
+          { transform: place(homeX, homeY, 1), color: accent },
         ],
         { duration: 600, easing: "cubic-bezier(.5,0,.2,1)", fill: "forwards" }
       ).finished;
@@ -842,7 +918,7 @@
       const fontSize = parseFloat(getComputedStyle(textEl).fontSize);
       const swapTo = async (target, flash) => {
         for (let i = 0; i < chars.length; i++) {
-          chars[i].textContent = target[i] === " " ? " " : target[i];
+          chars[i].textContent = target[i] === " " ? NBSP : target[i];
           if (flash) chars[i].classList.add("is-resolved");
           await wait(22);
         }
@@ -859,13 +935,12 @@
       }).finished;
       await wait(250);
 
-      // Suggestion bubble
-      const bubble = pinned(
-        "autocorrect",
-        `Did you mean <b>${WRONG.trim()}</b>?`,
-        rect.left + rect.width / 2,
-        rect.top + rect.height * 0.5 + fontSize * 0.62
-      );
+      // Suggestion bubble (measured again: the page may have scrolled since the squiggle)
+      const now = textEl.getBoundingClientRect();
+      const bubble = pinned("autocorrect", "", now.left + now.width / 2, now.top + now.height * 0.5 + fontSize * 0.62);
+      const suggestion = document.createElement("b");
+      suggestion.textContent = WRONG.trim();
+      bubble.append("Did you mean ", suggestion, "?");
       await bubble.animate([{ opacity: 0, transform: "translateY(-6px) scale(0.9)" }, { opacity: 1, transform: "none" }], {
         duration: 200,
         easing: "ease-out",
@@ -883,7 +958,7 @@
       await wait(150);
       bubble.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(0.9)" }], { duration: 180, fill: "forwards" });
       await swapTo(word, true);
-      await wait(400);
+      await wait(FLASH_MS); // let the last letter's flash finish
       squiggle.remove();
       bubble.remove();
     }
@@ -892,19 +967,16 @@
     // counts 0% → 100% (getting stuck at 99%, of course), sharpening as it loads
     async function buffering() {
       const rect = textEl.getBoundingClientRect();
+      // .spinner__pct has no CSS of its own; it's just the hook used to find the label
       const spinner = pinned("spinner", '<span class="spinner__pct">0%</span>', rect.left + rect.width / 2, rect.top + rect.height / 2);
       const size = Math.round(clamp(rect.height * 0.8, 44, 72));
       spinner.style.setProperty("--s", `${size}px`);
       const label = spinner.querySelector(".spinner__pct");
       const MAX_BLUR = 7;
 
-      let current = "blur(0px)";
-      const blurTo = (px, duration) => {
-        const next = `blur(${px.toFixed(2)}px)`;
-        const anim = textEl.animate([{ filter: current }, { filter: next }], { duration, fill: "forwards" });
-        current = next;
-        return anim.finished;
-      };
+      // One keyframe: each step starts from whatever blur is showing right now
+      const blurTo = (px, duration) =>
+        textEl.animate([{ filter: `blur(${px.toFixed(2)}px)` }], { duration, fill: "forwards" }).finished;
 
       await blurTo(MAX_BLUR, 220);
       let pct = 0;
@@ -922,7 +994,6 @@
 
       // Loaded: spinner goes away and the title pops back to full sharpness
       spinner.animate([{ opacity: 1 }, { opacity: 0, transform: "scale(0.8)" }], { duration: 220, fill: "forwards" });
-      current = "none";
       await textEl.animate(
         [
           { filter: "blur(0px) brightness(1)", transform: "scale(1)" },
@@ -946,7 +1017,7 @@
     const requested = (new URLSearchParams(window.location.search).get("effects") || "")
       .split(",")
       .map((name) => name.trim())
-      .filter((name) => name in effects);
+      .filter((name) => Object.prototype.hasOwnProperty.call(effects, name)); // not "toString" etc.
     const pool = requested.length ? requested : Object.keys(effects);
 
     // Put every letter back exactly as it started, so any effect can run next
@@ -962,7 +1033,43 @@
       textEl.removeAttribute("style");
       cursor.classList.remove("is-solid");
       cursor.removeAttribute("style");
+      // Anything an effect left behind (it may have been stopped part-way)
+      effectNodes.forEach((el) => el.remove());
+      effectNodes.clear();
     }
+
+    // Stop the current effect where it is: pending waits reject, and its
+    // script animations are cancelled (so their .finished promises reject).
+    // CSS animations are left alone, so the cursor keeps blinking.
+    function stopEffect() {
+      if (!current || current.stopped) return;
+      current.stopped = true;
+      current.cancels.forEach((cancel) => cancel());
+      current.cancels.clear();
+      const animations = [
+        ...button.getAnimations({ subtree: true }),
+        ...[...effectNodes].flatMap((el) => el.getAnimations({ subtree: true })),
+      ];
+      animations.forEach((animation) => {
+        if (typeof CSSAnimation !== "undefined" && animation instanceof CSSAnimation) return;
+        if (typeof CSSTransition !== "undefined" && animation instanceof CSSTransition) return;
+        animation.cancel();
+      });
+    }
+
+    // A width change moves and resizes the title, so positions measured at the
+    // start of an effect no longer line up: stop it rather than play it wrong.
+    // (Height-only resizes, like a phone's toolbar hiding, don't matter.)
+    let lastWidth = viewport().width;
+    window.addEventListener("resize", () => {
+      const { width } = viewport();
+      if (width !== lastWidth) stopEffect();
+      lastWidth = width;
+    });
+    // Reduce motion switched on mid-effect: stop it now, not when it ends
+    reducedMotion.addEventListener("change", () => {
+      if (reducedMotion.matches) stopEffect();
+    });
 
     let running = false;
     let lastEffect = null;
@@ -979,11 +1086,19 @@
       button.dataset.effect = name; // handy when debugging in DevTools
 
       running = true;
+      current = { stopped: false, cancels: new Set() };
       try {
         await effects[name](event);
+      } catch (error) {
+        // Stopping an effect rejects its waits/animations on purpose; anything else is a bug
+        if (!current.stopped) console.error(`Title effect "${name}" failed:`, error);
       } finally {
-        reset();
-        running = false;
+        current = null;
+        try {
+          reset();
+        } finally {
+          running = false; // never leave the title stuck, even if reset() throws
+        }
       }
     });
   }
@@ -998,16 +1113,21 @@
 
     document.querySelectorAll(".card").forEach((card) => {
       let rect = null;
+      let rectScroll = { x: 0, y: 0 }; // page scroll when rect was measured
       let maxTilt = 8;
       let frame = 0;
       let lastEvent = null;
 
-      // Pointer position as 0 → 1 across the card (clamped at the edges)
+      // Pointer position as 0 → 1 across the card (clamped at the edges).
+      // rect is in viewport coordinates from when it was measured, so shift it
+      // by however far the page has scrolled since.
       const position = (event) => {
         const clamp = (n) => Math.min(Math.max(n, 0), 1);
+        const left = rect.left - (window.scrollX - rectScroll.x);
+        const top = rect.top - (window.scrollY - rectScroll.y);
         return {
-          px: clamp((event.clientX - rect.left) / rect.width),
-          py: clamp((event.clientY - rect.top) / rect.height),
+          px: clamp((event.clientX - left) / rect.width),
+          py: clamp((event.clientY - top) / rect.height),
         };
       };
 
@@ -1029,6 +1149,7 @@
         if (!canTilt(event)) return;
         // Measure once on enter; measuring mid-tilt would include the tilt itself
         rect = card.getBoundingClientRect();
+        rectScroll = { x: window.scrollX, y: window.scrollY };
         maxTilt = parseFloat(getComputedStyle(card).getPropertyValue("--tilt-max")) || 8;
         card.classList.add("is-tilting");
         // Start the glare under the cursor, not wherever it was last time
@@ -1036,24 +1157,31 @@
         update();
       });
 
-      card.addEventListener("pointermove", (event) => {
-        if (!rect || !canTilt(event)) return;
-        lastEvent = event;
-        if (!frame) frame = requestAnimationFrame(update); // at most once per frame
-      });
-
-      card.addEventListener("pointerleave", (event) => {
+      // Spring back to flat. Leave the glare where the pointer left (when we
+      // know it) so it fades out in place.
+      const flatten = (event) => {
         cancelAnimationFrame(frame);
         frame = 0;
-        // Leave the glare where the cursor exited so it fades out in place;
-        // only the tilt springs back to flat
-        if (rect) moveGlare(position(event));
+        if (rect && event && "clientX" in event) moveGlare(position(event));
         rect = null;
         lastEvent = null;
         card.classList.remove("is-tilting");
         card.style.removeProperty("--rx");
         card.style.removeProperty("--ry");
+      };
+
+      card.addEventListener("pointermove", (event) => {
+        if (!rect) return;
+        // Pointer type or reduced motion changed while hovering: stop tilting
+        if (!canTilt(event)) return flatten();
+        lastEvent = event;
+        if (!frame) frame = requestAnimationFrame(update); // at most once per frame
       });
+
+      card.addEventListener("pointerleave", flatten);
+      card.addEventListener("pointercancel", flatten);
+      // Leaving the page (or coming back from the back/forward cache) mid-hover
+      window.addEventListener("pagehide", () => flatten());
     });
   }
 
@@ -1065,8 +1193,14 @@
     const canvas = document.getElementById("particles");
     if (!canvas || !canvas.getContext) return null;
     const ctx = canvas.getContext("2d");
+    const sprite = document.createElement("canvas");
+    const sctx = sprite.getContext("2d");
+    if (!ctx || !sctx) return null; // no 2D canvas: just skip the particles
 
-    const rgb = cssVar("--c-accent-rgb") || "0, 255, 156";
+    // --c-accent-rgb must be "R, G, B" (commas) to work inside rgba(); fall
+    // back to the default green if it's been written some other way
+    const accentRgb = cssVar("--c-accent-rgb");
+    const rgb = /^\d{1,3},\s*\d{1,3},\s*\d{1,3}$/.test(accentRgb) ? accentRgb : "0, 255, 156";
     const font = cssVar("--font-mono") || "monospace";
 
     let width = 0;
@@ -1078,9 +1212,7 @@
     let lastTime = 0;
 
     // Pre-render one soft glowing dot and stamp it; much cheaper than shadowBlur
-    const sprite = document.createElement("canvas");
     sprite.width = sprite.height = 32;
-    const sctx = sprite.getContext("2d");
     const gradient = sctx.createRadialGradient(16, 16, 0, 16, 16, 16);
     gradient.addColorStop(0, `rgba(${rgb}, 1)`);
     gradient.addColorStop(0.25, `rgba(${rgb}, 0.55)`);
@@ -1109,17 +1241,24 @@
       };
     };
 
+    let countWidth = 0; // width the particle count was last worked out for
+
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = window.innerWidth;
-      height = window.innerHeight;
+      ({ width, height } = viewport());
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const count = targetCount();
-      while (particles.length < count) particles.push(makeParticle());
-      particles.length = count;
+      // Only re-count when the width changes. On phones the height changes
+      // every time the toolbar slides in or out while scrolling, and
+      // re-counting then makes particles pop in and out.
+      if (width !== countWidth) {
+        countWidth = width;
+        const count = targetCount();
+        while (particles.length < count) particles.push(makeParticle());
+        particles.length = count;
+      }
       particles.forEach((p) => {
         p.x = Math.min(p.x, width);
         p.y = Math.min(p.y, height);
@@ -1140,7 +1279,9 @@
     const BURST_DRAG = 650; // ms; higher = bits coast farther before slowing down
 
     function draw(time) {
-      const dt = Math.min(time - lastTime, 50); // clamp after tab switches/jank
+      // Clamp after tab switches/jank, and never negative (the first frame's
+      // timestamp can be a hair earlier than the performance.now() in start())
+      const dt = Math.max(0, Math.min(time - lastTime, 50));
       lastTime = time;
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = `rgb(${rgb})`;
@@ -1201,6 +1342,19 @@
       resizeTimer = setTimeout(resize, 150);
     });
 
+    // Moving the window to a screen with a different pixel density doesn't
+    // always fire "resize", so watch the density itself (re-armed on each change)
+    const watchDensity = () => {
+      const query = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      const onChange = () => {
+        query.removeEventListener("change", onChange);
+        resize();
+        watchDensity();
+      };
+      query.addEventListener("change", onChange);
+    };
+    watchDensity();
+
     // Pause when the tab is hidden
     document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
 
@@ -1248,7 +1402,7 @@
   function initClickBursts(particles) {
     if (!particles) return;
     // Anything clickable does its own thing, so it doesn't get a burst
-    const INTERACTIVE = "a, button, input, textarea, select, label, summary, [role='button']";
+    const INTERACTIVE = "a, button, input, textarea, select, label, summary, [role='button'], .banner";
 
     document.addEventListener("click", (event) => {
       if (reducedMotion.matches || event.button !== 0) return;
@@ -1263,56 +1417,150 @@
      6. "Redirected from a bad URL" banner
      ============================================================= */
 
-  // 404.html sends visitors here with ?notfound=/the/bad/path
+  // 404.html stores { path, t } under this key, then redirects here.
+  // The key must match the one in 404.html.
+  const NOT_FOUND_KEY = "carterscoding:notfound";
+  const NOT_FOUND_MAX_AGE = 10000; // ms; older entries are leftovers, not this visit
+
   function initNotFoundBanner() {
+    // The old 404 page sent ?notfound=… instead; tidy it out of the address
+    // bar if someone arrives with one (from a cached page or an old link)
     const params = new URLSearchParams(window.location.search);
-    if (!params.has("notfound")) return;
-    const badPath = params.get("notfound");
+    if (params.has("notfound")) {
+      params.delete("notfound");
+      const query = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
+    }
 
-    // Tidy the address bar, so a refresh or a shared link doesn't show the banner again
-    params.delete("notfound");
-    const query = params.toString();
-    window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
+    let stored = null;
+    try {
+      stored = window.sessionStorage.getItem(NOT_FOUND_KEY);
+      window.sessionStorage.removeItem(NOT_FOUND_KEY); // show it once, not on every refresh
+    } catch {
+      return; // storage blocked
+    }
+    let badUrl = null;
+    try {
+      const entry = JSON.parse(stored);
+      // Only a fresh entry counts: one from just now, not left over from a
+      // redirect that never reached this page
+      if (entry && typeof entry.path === "string" && Date.now() - entry.t < NOT_FOUND_MAX_AGE) badUrl = entry.path;
+    } catch {
+      return; // missing or not ours
+    }
+    if (!badUrl || !badUrl.startsWith("/")) return;
 
+    // Show "/my café", not "/my%20caf%C3%A9"
+    try {
+      badUrl = decodeURI(badUrl);
+    } catch {
+      /* odd escapes: show it as typed */
+    }
+    // Drop control, invisible-formatting and text-direction characters
+    // (\p{Cc}, \p{Cf}) and line/paragraph separators, then shorten by whole
+    // characters. Anyone can link to a made-up path, so the text shown here is
+    // theirs: keep it short and plain.
+    const MAX_CHARS = 40;
+    const letters = Array.from(badUrl.replace(/[\p{Cc}\p{Cf}\u2028\u2029]/gu, ""));
+    const shown = letters.length > MAX_CHARS ? `${letters.slice(0, MAX_CHARS).join("")}…` : letters.join("");
+
+    const root = document.documentElement;
     const banner = document.createElement("div");
     banner.className = "banner";
-    banner.setAttribute("role", "status");
 
+    // The text is added a moment after this (empty) live region is on the
+    // page, because screen readers only announce changes to a live region
     const text = document.createElement("p");
     text.className = "banner__text";
-    const code = document.createElement("strong");
-    code.textContent = "404";
-    text.append(code, " The URL you entered ");
-    if (badPath && badPath !== "/") {
-      const path = document.createElement("span");
-      path.className = "banner__path";
-      path.textContent = badPath.length > 40 ? `${badPath.slice(0, 40)}…` : badPath; // textContent: never parsed as HTML
-      text.append("(", path, ") ");
-    }
-    text.append("doesn't exist, so you've been redirected to the homepage.");
+    text.setAttribute("role", "status");
 
     const close = document.createElement("button");
     close.type = "button";
     close.className = "banner__close";
-    close.setAttribute("aria-label", "Dismiss");
+    close.setAttribute("aria-label", "Dismiss notice");
     close.textContent = "×";
 
-    const dismiss = () => {
-      banner.classList.add("is-leaving");
-      setTimeout(() => banner.remove(), 300);
+    let closed = false;
+    const onKeydown = (event) => {
+      if (event.key === "Escape") dismiss();
     };
-    close.addEventListener("click", dismiss);
+    // Keep the end of the page scrollable into view above the banner: its
+    // height plus its gap from the bottom (read from the CSS, not hard-coded)
+    const reserveSpace = () => {
+      if (closed) return;
+      const gap = parseFloat(getComputedStyle(banner).bottom) || 0;
+      root.style.setProperty("--banner-space", `${banner.offsetHeight + gap}px`);
+    };
+    const observer = "ResizeObserver" in window ? new ResizeObserver(reserveSpace) : null;
+
+    async function dismiss(instant = false) {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("keydown", onKeydown);
+      if (observer) observer.disconnect();
+      root.style.removeProperty("--banner-space");
+      // Don't strand keyboard focus on a button that's about to disappear
+      if (banner.contains(document.activeElement)) {
+        const next = document.getElementById("title-btn");
+        if (next) next.focus({ preventScroll: true });
+      }
+      try {
+        if (!reducedMotion.matches && !instant) {
+          await banner.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(12px)" }], {
+            duration: 250,
+            easing: "ease-in",
+            fill: "forwards",
+          }).finished;
+        }
+      } catch {
+        /* animation cancelled: remove it anyway */
+      } finally {
+        banner.remove();
+      }
+    }
+    close.addEventListener("click", () => dismiss());
+    document.addEventListener("keydown", onKeydown);
+    // Coming back with Back/Forward restores the page as it was, banner
+    // included; it's meant to show once, so take it away without a fade
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) dismiss(true);
+    });
 
     banner.append(text, close);
-    document.body.appendChild(banner);
+    // Right after the skip link, so the × is one of the first Tab stops
+    const skipLink = document.querySelector(".skip-link");
+    if (skipLink) skipLink.after(banner);
+    else document.body.prepend(banner);
+    if (observer) observer.observe(banner);
+
+    wait(100).then(() => {
+      if (closed) return; // dismissed before the text arrived
+      const code = document.createElement("strong");
+      code.textContent = "404";
+      const url = document.createElement("span");
+      url.className = "banner__path";
+      url.textContent = shown; // textContent: never parsed as HTML
+      text.append(code, " The URL you entered (", url, ") doesn't exist, so you've been redirected to the homepage.");
+      reserveSpace();
+    });
   }
 
   /* ---------- Go ---------- */
 
-  renderProjects();
-  initTitle();
-  initTilt(); // after renderProjects so the new cards get tilt too
-  const particles = initParticles();
-  initClickBursts(particles);
-  initNotFoundBanner();
+  // Each feature starts on its own, so one failing never stops the others
+  const safely = (name, init) => {
+    try {
+      return init();
+    } catch (error) {
+      console.error(`carterscoding: ${name} failed to start`, error);
+      return null;
+    }
+  };
+
+  safely("404 banner", initNotFoundBanner); // first, so it never depends on the decorative stuff below
+  safely("project cards", renderProjects);
+  safely("title", initTitle);
+  safely("card tilt", initTilt); // after renderProjects so the new cards get tilt too
+  const particles = safely("particles", initParticles);
+  safely("click bursts", () => initClickBursts(particles));
 })();

@@ -1,5 +1,27 @@
+# Everything committed here is published on the live site, so keep out
+# anything that isn't part of it.
+
 # macOS Finder metadata
 .DS_Store
 
 # Windows thumbnail cache
 Thumbs.db
+
+# Editors and tools
+.vscode/
+.idea/
+.claude/
+*.swp
+
+# Secrets and keys (never commit these)
+.env
+.env.*
+*.pem
+*.key
+
+# Logs, dependencies, build output
+*.log
+node_modules/
+
+# Local review notes
+CODE_REVIEW_REPORT.md
