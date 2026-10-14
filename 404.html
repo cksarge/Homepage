@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page not found | carterscoding</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#050806">
+
+  <!-- GitHub Pages serves this file for any URL that doesn't exist.
+       It sends the visitor straight to the homepage, which shows a
+       "you've been redirected" banner (see section 6 of script.js). -->
+  <script>
+    // replace() keeps the bad URL out of the Back button's history
+    window.location.replace("/?notfound=" + encodeURIComponent(window.location.pathname));
+  </script>
+
+  <!-- No JavaScript: redirect anyway (the homepage just won't show the banner) -->
+  <noscript><meta http-equiv="refresh" content="0; url=/"></noscript>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #050806;
+      color: #dcffe9;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      text-align: center;
+    }
+    a { color: #00ff9c; }
+  </style>
+</head>
+<body>
+  <!-- Only seen for a moment, or if the redirect is blocked -->
+  <p>That page doesn't exist. Taking you to <a href="/">carterscoding.com</a>…</p>
+</body>
+</html>

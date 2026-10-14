@@ -7,6 +7,7 @@
    4. Particles       glowing dots and drifting 0/1s on a <canvas>
    5. Click bursts    clicking empty background sends a few 1s, 0s, and dots
                       drifting out (drawn on the particle canvas, behind everything)
+   6. 404 banner      "you've been redirected" notice after a bad URL (see 404.html)
    Everything respects prefers-reduced-motion.
    ============================================================= */
 
@@ -1258,6 +1259,54 @@
     });
   }
 
+  /* =============================================================
+     6. "Redirected from a bad URL" banner
+     ============================================================= */
+
+  // 404.html sends visitors here with ?notfound=/the/bad/path
+  function initNotFoundBanner() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("notfound")) return;
+    const badPath = params.get("notfound");
+
+    // Tidy the address bar, so a refresh or a shared link doesn't show the banner again
+    params.delete("notfound");
+    const query = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
+
+    const banner = document.createElement("div");
+    banner.className = "banner";
+    banner.setAttribute("role", "status");
+
+    const text = document.createElement("p");
+    text.className = "banner__text";
+    const code = document.createElement("strong");
+    code.textContent = "404";
+    text.append(code, " The URL you entered ");
+    if (badPath && badPath !== "/") {
+      const path = document.createElement("span");
+      path.className = "banner__path";
+      path.textContent = badPath.length > 40 ? `${badPath.slice(0, 40)}…` : badPath; // textContent: never parsed as HTML
+      text.append("(", path, ") ");
+    }
+    text.append("doesn't exist, so you've been redirected to the homepage.");
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "banner__close";
+    close.setAttribute("aria-label", "Dismiss");
+    close.textContent = "×";
+
+    const dismiss = () => {
+      banner.classList.add("is-leaving");
+      setTimeout(() => banner.remove(), 300);
+    };
+    close.addEventListener("click", dismiss);
+
+    banner.append(text, close);
+    document.body.appendChild(banner);
+  }
+
   /* ---------- Go ---------- */
 
   renderProjects();
@@ -1265,4 +1314,5 @@
   initTilt(); // after renderProjects so the new cards get tilt too
   const particles = initParticles();
   initClickBursts(particles);
+  initNotFoundBanner();
 })();

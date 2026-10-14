@@ -898,6 +898,85 @@ main:focus {
 }
 
 /* =============================================================
+   "Redirected from a bad URL" banner (added by script.js after 404.html)
+   ============================================================= */
+
+.banner {
+  position: fixed;
+  right: var(--gutter);
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  left: var(--gutter);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 720px;
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border: 1px solid var(--c-border-hot);
+  border-radius: var(--radius);
+  background: rgba(var(--c-bg-rgb), 0.94);
+  box-shadow: var(--shadow-card), 0 0 24px rgba(var(--c-accent-rgb), 0.18);
+  animation: banner-in var(--dur-med) var(--ease-out) both;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.banner.is-leaving {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(16px); }
+}
+
+.banner__text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--c-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.banner__text strong {
+  margin-right: 0.4em;
+  color: var(--c-accent);
+  text-shadow: var(--glow-text);
+}
+
+.banner__path {
+  color: var(--c-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.banner__close {
+  flex: none;
+  width: 44px;                     /* comfortable tap target on phones */
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--c-text-muted);
+  font: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.banner__close:hover,
+.banner__close:focus-visible {
+  background: rgba(var(--c-accent-rgb), 0.12);
+  color: var(--c-accent);
+}
+
+.banner__close:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* =============================================================
    Reduced motion: no drifting background, no particles,
    no title animations, no tilt/zoom/lift. Glows still work.
    ============================================================= */
@@ -935,7 +1014,9 @@ main:focus {
     transform: none;
   }
 
-  .skip-link {
+  .skip-link,
+  .banner {
+    animation: none;
     transition: none;
   }
 }
