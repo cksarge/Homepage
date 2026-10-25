@@ -47,4 +47,9 @@ const PROJECTS = [
     image: "images/all-in.png",
     url: "https://allin.carterscoding.com/",
   },
+  {
+    title: "Moodwave",
+    image: "images/moodwave.png",
+    url: "https://moodwave.carterscoding.com/",
+  },
 ];
