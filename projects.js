@@ -52,4 +52,9 @@ const PROJECTS = [
     image: "images/moodwave.png",
     url: "https://moodwave.carterscoding.com/",
   },
+  {
+    title: "Basketball Legends",
+    image: "images/basketball-legends.png",
+    url: "https://legends.carterscoding.com/",
+  },
 ];
