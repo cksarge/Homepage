@@ -57,4 +57,9 @@ const PROJECTS = [
     image: "images/basketball-legends.png",
     url: "https://legends.carterscoding.com/",
   },
+  {
+    title: "Maze Generator",
+    image: "images/maze-generator.png",
+    url: "https://mazegenerator.carterscoding.com/",
+  },
 ];
