@@ -62,4 +62,9 @@ const PROJECTS = [
     image: "images/maze-generator.png",
     url: "https://mazegenerator.carterscoding.com/",
   },
+  {
+    title: "John-Paul Simulator",
+    image: "images/john-paul-simulator.png",
+    url: "https://jpsim.carterscoding.com/",
+  },
 ];
