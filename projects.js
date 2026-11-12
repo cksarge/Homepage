@@ -72,4 +72,9 @@ const PROJECTS = [
     image: "images/bad-advice-simulator.png",
     url: "https://badadvicesim.carterscoding.com/",
   },
+  {
+    title: "Restaurant For Monsters",
+    image: "images/restaurant-for-monsters.png",
+    url: "https://monsters.carterscoding.com/",
+  },
 ];
