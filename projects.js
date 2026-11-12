@@ -67,4 +67,9 @@ const PROJECTS = [
     image: "images/john-paul-simulator.png",
     url: "https://jpsim.carterscoding.com/",
   },
+  {
+    title: "Bad Advice Simulator",
+    image: "images/bad-advice-simulator.png",
+    url: "https://badadvicesim.carterscoding.com/",
+  },
 ];
