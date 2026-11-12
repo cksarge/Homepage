@@ -5,8 +5,9 @@ My personal homepage. It's plain HTML, CSS, and JavaScript, with no frameworks, 
 ```
 index.html             page structure
 404.html               shown for any URL that doesn't exist; sends the visitor to the homepage
+sw.js                  service worker: keeps a copy of the site so the homepage works offline
 styles.css             all styling; theme colors/spacing/glows are CSS variables at the top
-script.js              title animations, card tilt, particle background, card rendering, 404 banner
+script.js              title animations, card tilt, particle background, card rendering, 404 banner, offline setup
 projects.js            the list of project cards  ← edit this to add projects
 images/                card images (PNG, 1200×900) and social-preview.png (the link-preview picture)
 fonts/                 JetBrains Mono, served from this site (OFL.txt is its licence)
@@ -77,6 +78,17 @@ GitHub Pages (and Netlify) serve `404.html` for any URL on the site that doesn't
 - With JavaScript turned off the redirect still happens, just without the banner.
 - It only covers this site. Each project subdomain is its own site with its own 404 page.
 - To try it locally, open `http://localhost:8000/nope` with a server that serves `404.html` for missing pages (`npx serve` does; `python3 -m http.server` doesn't). Opening `/404.html` directly just redirects home without a banner, since that file does exist. Or visit a made-up URL on the live site.
+
+## Offline
+
+After someone has visited once, the homepage works with no connection: `sw.js` (a service worker, registered at the bottom of `script.js`) saves the page, `styles.css`, `script.js`, `projects.js`, the font, the icons and every card image listed in `projects.js`.
+
+- **Online, nothing changes:** every file still comes from the site, and the saved copy is refreshed along the way. The saved copy is only used when the network fails, so a deploy shows up just like before.
+- **Adding or removing a project needs nothing extra.** `sw.js` reads the image list from `projects.js`, and browsers notice when either file changes and save the new set (removed images are deleted).
+- **Adding a new file the page needs** (another script, stylesheet or font): add it to `CORE_FILES` at the top of `sw.js`.
+- Project links open other sites, so those still need a connection. Offline, any URL on this site shows the homepage (without the 404 banner).
+- Service workers only run over HTTPS or on `localhost`, so double-clicking `index.html` skips this. To try it: serve the folder, load the page, then in Chrome DevTools → **Application → Service workers** tick **Offline** and reload.
+- To clear a stuck copy in your own browser: DevTools → **Application → Storage → Clear site data**.
 
 ## Run locally
 

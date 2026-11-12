@@ -8,6 +8,7 @@
    5. Click bursts    clicking empty background sends a few 1s, 0s, and dots
                       drifting out (drawn on the particle canvas, behind everything)
    6. 404 banner      "you've been redirected" notice after a bad URL (see 404.html)
+   7. Offline         registers sw.js, which keeps a copy of the page for offline use
    Everything respects prefers-reduced-motion.
    ============================================================= */
 
@@ -1545,6 +1546,24 @@
     });
   }
 
+  /* =============================================================
+     7. Offline support
+     ============================================================= */
+
+  // sw.js saves the page and its files so it opens with no connection.
+  // Browsers only allow it over HTTPS or on localhost (not file://).
+  function initOffline() {
+    if (!("serviceWorker" in navigator)) return;
+    // After the page has loaded, so saving files never competes with showing it
+    const register = () => {
+      navigator.serviceWorker.register("sw.js").catch((error) => {
+        console.warn("carterscoding: offline support unavailable", error);
+      });
+    };
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register, { once: true });
+  }
+
   /* ---------- Go ---------- */
 
   // Each feature starts on its own, so one failing never stops the others
@@ -1563,4 +1582,5 @@
   safely("card tilt", initTilt); // after renderProjects so the new cards get tilt too
   const particles = safely("particles", initParticles);
   safely("click bursts", () => initClickBursts(particles));
+  safely("offline support", initOffline);
 })();
