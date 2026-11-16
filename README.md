@@ -37,6 +37,11 @@ Cards show up in the same order as the list. To remove a card, delete its object
 
 - `url` opens in the same tab. It can be a full link (`https://…`) or a path on this site (`/my-cool-game/`). Anything else (like `javascript:`) is ignored and the card links nowhere.
 - If `alt` is left out, the image alt text defaults to `Preview of <title>`.
+- Add `featured: true` to pin a card to the top with a glowing "Featured" label above its title. Featured cards stay first (in list order among themselves) whichever sort is picked.
+
+### Search and sort
+
+Above the cards, a search box filters them by title as you type (ignoring case and accents), and the sort button switches between **date added** (the order in `projects.js`, so add new projects at the bottom) and **A–Z**. Both are in section 1 of `script.js`; the controls are in `index.html` next to the "Projects" heading.
 
 ## Swap images
 

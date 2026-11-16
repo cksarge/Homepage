@@ -1,7 +1,8 @@
 /* =============================================================
    carterscoding.com: page behavior
    -------------------------------------------------------------
-   1. Project cards   built from the PROJECTS array in projects.js
+   1. Project cards   built from the PROJECTS array in projects.js (featured
+                      first), plus the search box and sort button above them
    2. Title effects   a random click animation (never the same twice in a row)
    3. Card tilt       3D tilt + glare that follows the mouse (not on touch)
    4. Particles       glowing dots and drifting 0/1s on a <canvas>
@@ -58,9 +59,91 @@
       return;
     }
 
+    // Featured first, in list order. Each card keeps its list position (for a
+    // stable id and the "date added" sort) and gets its place on screen (for
+    // which images load first and the fade-in stagger).
+    const entries = projects.map((project, index) => ({ project, index }));
+    const ordered = [...entries.filter(isFeatured), ...entries.filter((entry) => !isFeatured(entry))];
     const fragment = document.createDocumentFragment();
-    projects.forEach((project, index) => fragment.appendChild(createCard(project, index)));
+    ordered.forEach((entry, position) => {
+      entry.item = createCard(entry.project, entry.index, position);
+      fragment.appendChild(entry.item);
+    });
     grid.replaceChildren(fragment);
+
+    initProjectControls(grid, entries);
+  }
+
+  const isFeatured = (entry) => entry.project.featured === true;
+
+  /* ---------- Search + sort ---------- */
+
+  // The cards are built once; searching hides them and sorting moves them, so
+  // nothing set up on them later (like the tilt) is lost.
+  function initProjectControls(grid, entries) {
+    const controls = document.getElementById("project-controls");
+    const search = document.getElementById("project-search");
+    const sortButton = document.getElementById("project-sort");
+    const status = document.getElementById("project-status");
+    if (!controls || !search || !sortButton || !status) return;
+
+    const titleOf = (entry) => entry.project.title || "Untitled project";
+
+    const SORTS = {
+      added: { label: "Sort: date added", compare: (a, b) => a.index - b.index },
+      az: {
+        label: "Sort: A–Z",
+        // numeric: "Game 2" before "Game 10"; base: ignore case and accents
+        compare: (a, b) => titleOf(a).localeCompare(titleOf(b), undefined, { numeric: true, sensitivity: "base" }),
+      },
+    };
+    let sort = "added";
+
+    // Lowercase without accents, so "pokemon" finds "Pokémon"
+    const fold = (text) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    entries.forEach((entry) => (entry.haystack = fold(titleOf(entry))));
+
+    // Cards fade in once, on load. Moving or unhiding one would replay that
+    // (with its delay), so switch it off the first time the list changes.
+    const settle = () => grid.classList.add("is-settled");
+
+    const applySort = () => {
+      // Featured stay on top whichever sort is picked
+      const sorted = [...entries].sort((a, b) => isFeatured(b) - isFeatured(a) || SORTS[sort].compare(a, b));
+      grid.append(...sorted.map((entry) => entry.item));
+    };
+
+    const applySearch = () => {
+      const query = fold(search.value.trim());
+      let shown = 0;
+      entries.forEach((entry) => {
+        const match = entry.haystack.includes(query);
+        entry.item.hidden = !match;
+        if (match) shown += 1;
+      });
+      const plural = shown === 1 ? "project" : "projects";
+      if (!query) status.textContent = "";
+      else if (shown === 0) status.textContent = `No projects match “${search.value.trim()}”.`;
+      else status.textContent = `${shown} ${plural} found`;
+      // The count is for screen readers; only "no matches" needs showing
+      status.classList.toggle("sr-only", shown > 0);
+    };
+
+    search.addEventListener("input", () => {
+      settle();
+      applySearch();
+    });
+
+    sortButton.addEventListener("click", () => {
+      settle();
+      sort = sort === "added" ? "az" : "added";
+      sortButton.textContent = SORTS[sort].label;
+      applySort();
+    });
+
+    // A browser may refill the search box when coming back to the page
+    if (search.value) applySearch();
+    controls.hidden = false;
   }
 
   /**
@@ -73,7 +156,9 @@
    * Project data is only ever set with textContent (the one innerHTML below is
    * fixed markup), so project text can never inject HTML.
    */
-  function createCard(project, index) {
+  // index: place in projects.js (keeps ids unique and stable).
+  // position: place on screen when the page loads.
+  function createCard(project, index, position) {
     const id = `project-${index}`;
     const name = project.title || "Untitled project";
     const item = document.createElement("li");
@@ -81,7 +166,7 @@
     const card = document.createElement("a");
     card.className = "card";
     card.href = safeUrl(project.url);
-    card.style.setProperty("--i", index); // staggered fade-in
+    card.style.setProperty("--i", position); // staggered fade-in
     // Screen readers announce just the title as the link name
     card.setAttribute("aria-labelledby", `${id}-title`);
 
@@ -93,8 +178,8 @@
       img.className = "card__img";
       // The first row is on screen straight away, so load it right away;
       // the rest wait until they're scrolled near. Set before src so it applies.
-      img.loading = index < 3 ? "eager" : "lazy";
-      if (index === 0) img.fetchPriority = "high";
+      img.loading = position < 3 ? "eager" : "lazy";
+      if (position === 0) img.fetchPriority = "high";
       img.decoding = "async";
       img.width = 1200; // card images are 1200×900 (4:3, same as the card)
       img.height = 900;
@@ -123,6 +208,17 @@
     cta.className = "card__cta";
     cta.setAttribute("aria-hidden", "true");
     cta.innerHTML = 'open <span class="card__arrow">→</span>';
+
+    // "Featured" sits above the title (projects with featured: true)
+    if (project.featured === true) {
+      card.classList.add("card--featured");
+      const tag = document.createElement("span");
+      tag.className = "card__tag";
+      tag.id = `${id}-tag`;
+      tag.textContent = "Featured";
+      card.setAttribute("aria-describedby", tag.id); // "Four Kingdoms, Featured"
+      body.appendChild(tag);
+    }
 
     body.append(title, cta);
     card.append(media, glare, body);

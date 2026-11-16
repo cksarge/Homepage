@@ -37,11 +37,11 @@
 
   <!-- ?v=… makes browsers fetch fresh copies after a deploy (GitHub Pages lets
        them cache for 10 minutes). Bump it whenever these files change. -->
-  <link rel="stylesheet" href="styles.css?v=2026-10-13">
+  <link rel="stylesheet" href="styles.css?v=2026-11-16">
 
   <!-- defer: run after the HTML is parsed, in this order -->
-  <script src="projects.js?v=2026-11-11" defer></script>
-  <script src="script.js?v=2026-11-11" defer></script>
+  <script src="projects.js?v=2026-11-16" defer></script>
+  <script src="script.js?v=2026-11-16" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#projects">Skip to projects</a>
@@ -67,10 +67,24 @@
     </header>
 
     <main id="projects" class="container" tabindex="-1">
-      <h2 class="section-title">Projects</h2>
+      <div class="section-head">
+        <h2 class="section-title">Projects</h2>
+
+        <!-- Search + sort (section 1 of script.js). Hidden until the cards
+             exist, since without JavaScript there's nothing to search. -->
+        <div class="controls" id="project-controls" role="search" hidden>
+          <input class="controls__search" id="project-search" type="search"
+                 placeholder="search projects…" aria-label="Search projects"
+                 autocomplete="off" spellcheck="false">
+          <button class="controls__sort" id="project-sort" type="button">Sort: date added</button>
+        </div>
+      </div>
 
       <!-- Cards are generated from projects.js -->
       <ul class="grid" id="project-grid"></ul>
+
+      <!-- "N projects" for screen readers as the search changes; shown when nothing matches -->
+      <p class="grid__status" id="project-status" aria-live="polite"></p>
 
       <noscript>
         <p class="noscript-msg">Turn on JavaScript to see my projects, or browse them on

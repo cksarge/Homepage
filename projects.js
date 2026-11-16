@@ -2,7 +2,9 @@
  * PROJECTS: the list of cards shown on the homepage.
  *
  * To add a project, copy one { ... } block, paste it into the list,
- * and change the values. Cards appear in the same order as this list.
+ * and change the values. Cards appear in the same order as this list
+ * (add new ones at the bottom: this order is the "date added" sort),
+ * except that featured projects always come first.
  *
  *   title   (required) Card heading.
  *   image   (required) Background image path, e.g. "images/my-game.png".
@@ -10,6 +12,8 @@
  *   url     (required) Where the card goes when clicked (opens in the same tab).
  *           Must be https://…, http://…, or a path on this site.
  *   alt     (optional) Alt text for the image. Defaults to "Preview of <title>".
+ *   featured (optional) true to pin the card to the top and give it a
+ *           "featured" tag. Featured cards keep their order among themselves.
  */
 const PROJECTS = [
   {
@@ -29,6 +33,7 @@ const PROJECTS = [
   },
   {
     title: "Ports of Plague",
+    featured: true,
     image: "images/ports-of-plague.png",
     url: "https://portsofplague.carterscoding.com/",
   },
@@ -44,6 +49,7 @@ const PROJECTS = [
   },
   {
     title: "All In",
+    featured: true,
     image: "images/all-in.png",
     url: "https://allin.carterscoding.com/",
   },
@@ -64,6 +70,7 @@ const PROJECTS = [
   },
   {
     title: "John-Paul Simulator",
+    featured: true,
     image: "images/john-paul-simulator.png",
     url: "https://jpsim.carterscoding.com/",
   },

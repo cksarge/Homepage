@@ -620,11 +620,84 @@ main:focus {
   outline: none;                   /* focused only via the skip link */
 }
 
-.section-title {
+/* "Projects" on the left, search + sort on the right (stacked on phones) */
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
   margin: 0 0 var(--space-5);
+}
+
+.section-title {
+  margin: 0;
   color: var(--c-text);
   font-size: clamp(1.3rem, 3vw, 1.6rem);
   font-weight: 700;
+}
+
+.controls {
+  display: flex;
+  flex: 0 1 26rem;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.controls[hidden] {
+  display: none;
+}
+
+.controls__search,
+.controls__sort {
+  height: 44px;                    /* comfortable tap target on phones */
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: rgba(var(--c-bg-rgb), 0.7);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 0.85rem;
+  transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+}
+
+.controls__search {
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--space-4);
+}
+
+.controls__search::placeholder {
+  color: var(--c-text-muted);
+}
+
+.controls__sort {
+  flex: none;
+  padding: 0 var(--space-4);
+  color: var(--c-accent);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.controls__search:hover,
+.controls__sort:hover {
+  border-color: var(--c-border-hot);
+}
+
+.controls__sort:hover {
+  background: rgba(var(--c-accent-rgb), 0.08);
+}
+
+.controls__search:focus-visible,
+.controls__sort:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-color: var(--c-border-hot);
+}
+
+@media (max-width: 560px) {
+  .controls {
+    flex-basis: 100%;
+  }
 }
 
 .grid {
@@ -648,9 +721,24 @@ main:focus {
   display: flex;
 }
 
+/* Filtered out by the search (needed: the rule above would override [hidden]) */
+.grid > li[hidden] {
+  display: none;
+}
+
+/* After the first search or sort, cards stop replaying their fade-in */
+.grid.is-settled .card {
+  animation: none;
+}
+
 .grid__empty,
+.grid__status,
 .noscript-msg {
   color: var(--c-text-muted);
+}
+
+.grid__status {
+  margin: 0;
 }
 
 /* =============================================================
@@ -769,6 +857,40 @@ main:focus {
   content: "> ";
   content: "> " / "";             /* decorative: hidden from screen readers where supported */
   color: var(--c-accent);
+}
+
+/* "Featured" above the title (projects with featured: true). Its bottom
+   margin matches the title → "open →" gap (--space-1 + --space-3), so the
+   three lines are evenly spaced. A bright band sweeps across the glowing
+   text now and then. */
+.card__tag {
+  display: block;
+  width: fit-content;
+  margin-bottom: calc(var(--space-1) + var(--space-3));
+  background: linear-gradient(
+      100deg,
+      var(--c-accent) 0 40%,
+      #eafff4 50%,
+      var(--c-accent) 60% 100%
+    )
+    0 0 / 250% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 6px rgba(var(--c-accent-rgb), 0.6));
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  animation: tag-shine 3.5s var(--ease-out) 1s infinite;
+}
+
+@keyframes tag-shine {
+  0%       { background-position: 100% 0; }
+  45%, 100% { background-position: 0 0; }
+}
+
+.card--featured {
+  border-color: rgba(var(--c-accent-rgb), 0.38);
 }
 
 .card__desc {
@@ -1022,6 +1144,10 @@ main:focus {
 
   .title__btn {
     cursor: default;
+  }
+
+  .card__tag {
+    animation: none;               /* keep the glow, drop the moving shine */
   }
 
   .card {
