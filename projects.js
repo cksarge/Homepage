@@ -69,10 +69,10 @@ const PROJECTS = [
     url: "https://mazegenerator.carterscoding.com/",
   },
   {
-    title: "John-Paul Simulator",
+    title: "Battle World",
     featured: true,
-    image: "images/john-paul-simulator.png",
-    url: "https://jpsim.carterscoding.com/",
+    image: "images/battle-world.png",
+    url: "https://battleworld.carterscoding.com/",
   },
   {
     title: "Bad Advice Simulator",
